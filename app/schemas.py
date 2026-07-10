@@ -137,3 +137,64 @@ class LokaatioRead(LokaatioBase):
 
     id: int
     tuotanto_id: int
+
+
+# ---------------------------------------------------------------------------
+# Optimointi (docs/optimoija-spec.md §1)
+# ---------------------------------------------------------------------------
+
+
+class OptimointiPyynto(BaseModel):
+    aikaraja_s: int = 15
+    max_etuajassa_min: int = 30
+    max_kyytiaika_lisa_min: int = 25
+    nyt: str | None = None
+    pohjaversio_id: int | None = None
+    skenaariot: bool = True
+
+
+class KeikkaVastaus(BaseModel):
+    keikka_id: int
+    tehtava_id: int
+    nimi: str
+    nouto_klo: str
+    jatto_klo: str
+    mista: str
+    mihin: str
+    kuitattu: bool
+    lukittu: bool
+
+
+class KuskinAjolista(BaseModel):
+    paiva_kuski_id: int
+    nimi: str
+    sopimus: SopimusTyyppi
+    vuoro_alku: str
+    vuoro_loppu: str
+    kesto_min: int
+    lisakustannus_eur: float
+    keikat: list[KeikkaVastaus]
+
+
+class Sijoittamaton(BaseModel):
+    tehtava_id: int
+    nimi: str
+    syy: str
+    selite: str
+
+
+class Skenaario(BaseModel):
+    kuskeja_tarjolla: int
+    kuskeja_kaytossa: int
+    kustannus_eur: float | None
+    ratkeaa: bool
+    halvin: bool
+
+
+class OptimointiVastaus(BaseModel):
+    versio_id: int
+    versio_nro: int
+    kokonaiskustannus_eur: float
+    kuskit: list[KuskinAjolista]
+    sijoittamatta: list[Sijoittamaton]
+    skenaariot: list[Skenaario] | None = None
