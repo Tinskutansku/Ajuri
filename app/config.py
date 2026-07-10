@@ -5,6 +5,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     database_url: str = "postgresql+asyncpg://ajuri:ajuri@localhost:5432/ajuri"
+    osrm_base_url: str = "https://router.project-osrm.org"
 
 
 settings = Settings()

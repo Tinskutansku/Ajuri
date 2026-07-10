@@ -285,3 +285,30 @@ class Keikka(Base):
     versio: Mapped["AjolistaVersio"] = relationship(back_populates="keikat")
     tehtava: Mapped["Tehtava"] = relationship()
     paiva_kuski: Mapped["PaivaKuski"] = relationship()
+
+
+# ---------------------------------------------------------------------------
+# 4) Ajoaikavälimuisti (optimoijaservice)
+# ---------------------------------------------------------------------------
+
+class Matka(Base):
+    """Reititys-API:sta haettujen ajoaikojen välimuisti pistepareittain.
+
+    Koordinaatit pyöristetään 4 desimaaliin (≈10 m) ennen tallennusta,
+    jotta samaa osoitetta ei kysytä API:sta uudestaan pienten
+    liukulukuerojen takia.
+    """
+    __tablename__ = "matka"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    mista_lat: Mapped[float]
+    mista_lon: Mapped[float]
+    mihin_lat: Mapped[float]
+    mihin_lon: Mapped[float]
+    ajoaika_s: Mapped[int]
+    matka_m: Mapped[float]
+    haettu: Mapped[datetime] = mapped_column(server_default=func.now())
+    lahde: Mapped[str] = mapped_column(String(50))
+
+    __table_args__ = (
+        UniqueConstraint("mista_lat", "mista_lon", "mihin_lat", "mihin_lon"),
+    )
