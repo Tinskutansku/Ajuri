@@ -1,10 +1,10 @@
 # Ajuri — ajolistan hallinta
 
-FastAPI-projektirunko kuvausten kuljetuslogistiikan hallintaan. Tässä
-vaiheessa mukana on perusdatan CRUD (tuotanto, henkilö, kuski, ajoneuvo,
-lokaatio). Ajolistan optimointi (`ajolista_optimoija.py`, OR-Tools) on
-prototyyppi, joka sovitetaan myöhemmin `app/services`-kerrokseen — sitä
-ei ole vielä kytketty API:in.
+FastAPI-projektirunko kuvausten kuljetuslogistiikan hallintaan. Mukana on
+perusdatan CRUD (tuotanto, henkilö, kuski, ajoneuvo, lokaatio) sekä
+ajolistan optimointiservice (`docs/optimoija-spec.md`), joka ratkaisee
+päivän kuljetustehtävät OR-Toolsilla ja tallentaa tuloksen versioituna.
+Pohjana `ajolista_optimoija.py`-prototyyppi.
 
 ## Rakenne
 
@@ -12,14 +12,19 @@ ei ole vielä kytketty API:in.
 app/
   main.py         FastAPI-sovellus ja reitittimien rekisteröinti
   models.py       SQLAlchemy 2.0 -mallit (ei muuteta ilman erillistä päätöstä)
-  schemas.py      Pydantic v2 -skeemat (Create/Read per entiteetti)
+  schemas.py      Pydantic v2 -skeemat (Create/Read per entiteetti + optimointi)
   database.py     Async-engine ja istunnot
   config.py       Asetukset (.env)
-  routers/        CRUD-reitittimet per entiteetti
-  services/       Varattu tuleville palveluille (mm. optimoija)
+  routers/        CRUD-reitittimet + optimointi.py
+  services/
+    optimoija.py       OR-Tools-malli (pohja: ajolista_optimoija.py)
+    kustannus.py        Kuskin päivän lisäkustannus sopimustyypin mukaan
+    matka_cache.py       Ajoaikojen välimuisti (Matka-taulu)
+    router_client.py     Reititys-API-abstraktio (OSRM julkinen demo)
 alembic/          Tietokantamigraatiot
 tests/            Pytest-testit
-ajolista_optimoija.py   OR-Tools-prototyyppi (ei vielä kytketty)
+docs/optimoija-spec.md   Optimoijaservicen speksi
+ajolista_optimoija.py    Alkuperäinen OR-Tools-prototyyppi (viitteeksi)
 ```
 
 ## Käynnistys Docker Composella (suositeltu)
@@ -78,9 +83,9 @@ alembic revision --autogenerate -m "kuvaus muutoksesta"
 alembic upgrade head
 ```
 
-## Rajapinnat (v1)
+## Rajapinnat
 
-CRUD-reitit seuraaville perusdataentiteeteille:
+CRUD-reitit perusdataentiteeteille:
 
 - `/tuotannot`
 - `/henkilot` (suodatus: `?tuotanto_id=`)
@@ -88,5 +93,18 @@ CRUD-reitit seuraaville perusdataentiteeteille:
 - `/ajoneuvot` (suodatus: `?tuotanto_id=`)
 - `/lokaatiot` (suodatus: `?tuotanto_id=`)
 
-Päiväkohtainen data (kuvauspäivät, tehtävät, ajolistaversiot) ja
-optimointi eivät ole vielä mukana.
+Optimointi (`docs/optimoija-spec.md`):
+
+- `POST /paivat/{paiva_id}/optimoi` — ratkaisee päivän kuljetustehtävät ja
+  tallentaa tuloksen uutena `ajolista_versio`-versiona. Vaatii, että
+  kuvauspäivän kaikilla tehtävillä ja tarjolla olevilla kuskeilla on
+  koordinaatit tallennettuna (muuten `422`).
+
+Kuvauspäivien/tehtävien/kuskien päiväkohtaista CRUD:ia (`kuvauspaiva`,
+`paiva_kuski`, `tehtava` -taulut) ei ole vielä oma rajapintansa — rivit
+pitää toistaiseksi luoda suoraan tietokantaan/ORM:lla.
+
+Reititys-API on OSRM:n julkinen demo-palvelin
+(`https://router.project-osrm.org`, ks. `app/services/router_client.py`).
+Se ei sovi tuotantokäyttöön (ei SLA:ta, rate limit) — vaihda
+`OSRMRouterClient` toiseen `RouterClient`-toteutukseen tuotantoa varten.
