@@ -1,6 +1,20 @@
 from fastapi import FastAPI
 
-from app.routers import ajoneuvo, henkilo, kuski, lokaatio, optimointi, tuotanto
+from app.routers import (
+    ajoneuvo,
+    henkilo,
+    keikat,
+    kuski,
+    kuvauspaiva,
+    lokaatio,
+    optimointi,
+    paiva_henkilo,
+    paiva_kuski,
+    paiva_lokaatio,
+    tehtava,
+    tuotanto,
+    versiot,
+)
 
 app = FastAPI(title="Ajolista API")
 
@@ -9,6 +23,13 @@ app.include_router(henkilo.router)
 app.include_router(kuski.router)
 app.include_router(ajoneuvo.router)
 app.include_router(lokaatio.router)
+app.include_router(kuvauspaiva.router)
+app.include_router(paiva_lokaatio.router)
+app.include_router(paiva_henkilo.router)
+app.include_router(paiva_kuski.router)
+app.include_router(tehtava.router)
+app.include_router(versiot.router)
+app.include_router(keikat.router)
 app.include_router(optimointi.router)
 
 

@@ -3,11 +3,11 @@ Create-malli (syöte) ja Read-malli (vastaus, sisältää id:n)."""
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, time
 
 from pydantic import BaseModel, ConfigDict
 
-from app.models import HenkiloTyyppi, SopimusTyyppi
+from app.models import HenkiloTyyppi, SopimusTyyppi, TehtavaTyyppi
 
 # ---------------------------------------------------------------------------
 # Tuotanto
@@ -137,6 +137,173 @@ class LokaatioRead(LokaatioBase):
 
     id: int
     tuotanto_id: int
+
+
+# ---------------------------------------------------------------------------
+# Kuvauspaiva
+# ---------------------------------------------------------------------------
+
+
+class KuvauspaivaBase(BaseModel):
+    pvm: date
+    paiva_nro: str | None = None
+    call_time: time
+    lounas: time | None = None
+    wrap_arvio: time | None = None
+    huomiot: str | None = None
+
+
+class KuvauspaivaCreate(KuvauspaivaBase):
+    tuotanto_id: int
+
+
+class KuvauspaivaRead(KuvauspaivaBase):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    tuotanto_id: int
+
+
+# ---------------------------------------------------------------------------
+# PaivaLokaatio
+# ---------------------------------------------------------------------------
+
+
+class PaivaLokaatioBase(BaseModel):
+    lokaatio_id: int
+    jarjestys: int = 1
+    siirtyma_klo: time | None = None
+
+
+class PaivaLokaatioCreate(PaivaLokaatioBase):
+    paiva_id: int
+
+
+class PaivaLokaatioRead(PaivaLokaatioBase):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    paiva_id: int
+
+
+# ---------------------------------------------------------------------------
+# PaivaHenkilo
+# ---------------------------------------------------------------------------
+
+
+class PaivaHenkiloBase(BaseModel):
+    henkilo_id: int
+    oma_call: time | None = None
+    oma_auto: bool = False
+    ei_paluuta: bool = False
+    siirtyy: bool = True
+    huomiot: str | None = None
+
+
+class PaivaHenkiloCreate(PaivaHenkiloBase):
+    paiva_id: int
+
+
+class PaivaHenkiloRead(PaivaHenkiloBase):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    paiva_id: int
+
+
+# ---------------------------------------------------------------------------
+# PaivaKuski
+# ---------------------------------------------------------------------------
+
+
+class PaivaKuskiBase(BaseModel):
+    kuski_id: int
+    ajoneuvo_id: int | None = None
+    tarjolla: bool = True
+    vuoro_aikaisintaan: time | None = None
+    vuoro_viimeistaan: time | None = None
+    toteutunut_alku: time | None = None
+    toteutunut_loppu: time | None = None
+
+
+class PaivaKuskiCreate(PaivaKuskiBase):
+    paiva_id: int
+
+
+class PaivaKuskiRead(PaivaKuskiBase):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    paiva_id: int
+
+
+# ---------------------------------------------------------------------------
+# Tehtava
+# ---------------------------------------------------------------------------
+
+
+class TehtavaBase(BaseModel):
+    tyyppi: TehtavaTyyppi
+    nimi: str
+    henkilo_id: int | None = None
+    henkiloita: int = 1
+    mista_osoite: str
+    mista_lat: float | None = None
+    mista_lon: float | None = None
+    mihin_osoite: str
+    mihin_lat: float | None = None
+    mihin_lon: float | None = None
+    nouto_aikaisintaan: time | None = None
+    nouto_viimeistaan: time | None = None
+    perilla_aikaisintaan: time | None = None
+    perilla_viimeistaan: time | None = None
+    generoitu: bool = False
+    lukittu_kuski_id: int | None = None
+    yksin: bool = False
+    huomiot: str | None = None
+
+
+class TehtavaCreate(TehtavaBase):
+    paiva_id: int
+
+
+class TehtavaRead(TehtavaBase):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    paiva_id: int
+
+
+# ---------------------------------------------------------------------------
+# AjolistaVersio / Keikka (vain julkaisu/kuittaus-toiminnot, ei omaa CRUD:ia)
+# ---------------------------------------------------------------------------
+
+
+class AjolistaVersioRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    paiva_id: int
+    versio_nro: int
+    luotu: datetime
+    luoja_id: int | None
+    kokonaiskustannus_eur: float | None
+    julkaistu: bool
+    kommentti: str | None
+
+
+class KeikkaRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    versio_id: int
+    tehtava_id: int
+    paiva_kuski_id: int
+    nouto_klo: time
+    jatto_klo: time
+    jarjestys: int
+    kasin_siirretty: bool
+    kuitattu: bool
 
 
 # ---------------------------------------------------------------------------
