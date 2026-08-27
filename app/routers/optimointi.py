@@ -165,6 +165,7 @@ async def optimoi_paiva(
     kuskit = [
         KuskiRow(
             paiva_kuski_id=pk.id,
+            kuski_id=pk.kuski_id,
             nimi=pk.kuski.nimi,
             sopimus=pk.kuski.sopimus,
             tuntihinta=(

@@ -28,6 +28,7 @@ AJOAIKA = {
 def _kuski(paiva_kuski_id: int) -> KuskiRow:
     return KuskiRow(
         paiva_kuski_id=paiva_kuski_id,
+        kuski_id=paiva_kuski_id,
         nimi=f"Kuski {paiva_kuski_id}",
         sopimus=SopimusTyyppi.KUUKAUSI,
         tuntihinta=20.0,
@@ -101,6 +102,48 @@ def test_mahdoton_aikaikkuna_paatyy_sijoittamattomiin_syykoodilla():
     )
     assert syyt[0]["tehtava_id"] == 99
     assert syyt[0]["syy"] == "aikaikkuna"
+
+
+def test_lukittu_kuski_id_kayttaa_kuski_id_ei_paiva_kuski_id():
+    # paiva_kuski_id ja kuski_id ovat TARKOITUKSELLA eri arvoja, jotta testi
+    # paljastaisi jos lukitus verrataan väärään id-avaruuteen (regressio:
+    # lukittu_kuski_id viittaa kuski.id:hen, ei paiva_kuski.id:hen).
+    kuski_a = KuskiRow(
+        paiva_kuski_id=101, kuski_id=5, nimi="Kuski A",
+        sopimus=SopimusTyyppi.KUUKAUSI, tuntihinta=20.0, paikkoja=4, aloitus=KOTI,
+    )
+    kuski_b = KuskiRow(
+        paiva_kuski_id=102, kuski_id=6, nimi="Kuski B",
+        sopimus=SopimusTyyppi.KUUKAUSI, tuntihinta=20.0, paikkoja=4, aloitus=KOTI,
+    )
+    tehtava = TehtavaRow(
+        id=1, nimi="Lukittu tehtävä", mista=NOUTOPISTE, mihin=JATTOPISTE,
+        henkiloita=1, perilla_viimeistaan=8 * 60, lukittu_kuski_id=6,
+    )
+    tulos = ratkaise([tehtava], [kuski_a, kuski_b], AJOAIKA, OptimointiParametrit(aikaraja_s=5))
+
+    assert tulos.sijoittamatta == []
+    assert tulos.keikat[0].paiva_kuski_id == 102  # kuski_b (kuski_id=6), ei kuski_a
+
+
+def test_lukittu_kuski_ei_tarjolla_paatyy_sijoittamattomiin_lukituskonfliktilla():
+    kuski_a = KuskiRow(
+        paiva_kuski_id=101, kuski_id=5, nimi="Kuski A",
+        sopimus=SopimusTyyppi.KUUKAUSI, tuntihinta=20.0, paikkoja=4, aloitus=KOTI,
+    )
+    tehtava = TehtavaRow(
+        id=1, nimi="Lukittu poissaolevalle", mista=NOUTOPISTE, mihin=JATTOPISTE,
+        henkiloita=1, perilla_viimeistaan=8 * 60, lukittu_kuski_id=999,
+    )
+    tulos = ratkaise([tehtava], [kuski_a], AJOAIKA, OptimointiParametrit(aikaraja_s=5))
+
+    assert tulos.ratkeaa
+    assert tulos.sijoittamatta == [1]
+
+    syyt = analysoi_sijoittamattomat(
+        tulos.sijoittamatta, [tehtava], [kuski_a], AJOAIKA, OptimointiParametrit(aikaraja_s=5)
+    )
+    assert syyt[0]["syy"] == "lukituskonflikti"
 
 
 def test_koosta_kuskien_yhteenveto_laskee_kuukausisopimuksen_ilmaiseksi():

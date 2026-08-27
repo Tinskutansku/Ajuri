@@ -59,6 +59,7 @@ def _rakenna_kuskit() -> list[KuskiRow]:
     return [
         KuskiRow(
             paiva_kuski_id=i + 1,
+            kuski_id=i + 1,
             nimi=k.nimi,
             sopimus=SOPIMUKSET[i],
             tuntihinta=proto.TUNTIHINTA,

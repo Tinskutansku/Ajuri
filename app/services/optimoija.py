@@ -57,6 +57,7 @@ class TehtavaRow:
 @dataclass
 class KuskiRow:
     paiva_kuski_id: int
+    kuski_id: int
     nimi: str
     sopimus: SopimusTyyppi
     tuntihinta: float
@@ -195,10 +196,23 @@ def ratkaise(
 
         if teht.lukittu_kuski_id is not None:
             sallitut = [
-                v for v, k in enumerate(kuskit) if k.paiva_kuski_id == teht.lukittu_kuski_id
+                v for v, k in enumerate(kuskit) if k.kuski_id == teht.lukittu_kuski_id
             ]
-            routing.SetAllowedVehiclesForIndex(sallitut, pick)
-            routing.SetAllowedVehiclesForIndex(sallitut, drop)
+            # SetAllowedVehiclesForIndex ei toimi luotettavasti tässä
+            # OR-Tools-versiossa (absl::Span-sidonta rikki), joten rajataan
+            # VehicleVar suoraan solverin kautta. PaivaKuskin
+            # UniqueConstraint(paiva_id, kuski_id) takaa ettei sallittuja
+            # ajoneuvoja voi koskaan olla useampi kuin yksi.
+            if sallitut:
+                ehdot = [routing.VehicleVar(pick) == v for v in sallitut]
+                solver.Add(sum(ehdot) >= 1)
+                ehdot_drop = [routing.VehicleVar(drop) == v for v in sallitut]
+                solver.Add(sum(ehdot_drop) >= 1)
+            else:
+                # Lukittu kuski ei ole tarjolla tänään -> tehtävä ei voi
+                # koskaan sijoittua, pudotetaan aina disjunktion kautta.
+                solver.Add(routing.VehicleVar(pick) == -1)
+                solver.Add(routing.VehicleVar(drop) == -1)
 
         if teht.edellinen_paiva_kuski_id is not None:
             vastaavat = [
@@ -331,7 +345,7 @@ def _selvita_syy(
     parametrit: OptimointiParametrit,
 ) -> tuple[str, str]:
     if teht.lukittu_kuski_id is not None:
-        kandidaatit = [k for k in kuskit if k.paiva_kuski_id == teht.lukittu_kuski_id]
+        kandidaatit = [k for k in kuskit if k.kuski_id == teht.lukittu_kuski_id]
         if not kandidaatit:
             return (
                 "lukituskonflikti",
