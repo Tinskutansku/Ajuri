@@ -57,6 +57,7 @@ KOTI_KUSKI1 = ("Kotiosoite, Tapiola, Espoo", 60.1799, 24.8046)
 KOTI_KUSKI2 = ("Kotiosoite, Kallio, Helsinki", 60.1836, 24.9500)
 KOTI_KUSKI3 = ("Kotiosoite, Tikkurila, Vantaa", 60.2934, 25.0378)
 KOTI_KUSKI4 = ("Kotiosoite, Leppävaara, Espoo", 60.2170, 24.8110)
+KOTI_KUSKI5 = ("Vuokraamo, Pasila, Helsinki", 60.1984, 24.9339)
 
 
 async def upsert(db: AsyncSession, model, defaults: dict | None = None, **kwargs):
@@ -158,7 +159,8 @@ async def main() -> None:
             },
         )
 
-        # --- Kuskit: 2 kk-sopimusta, 1 päiväpalkka, 1 tuntipalkka ---
+        # --- Kuskit: 2 kk-sopimusta, 1 päiväpalkka, 1 tuntipalkka + 1 kk-sopimus
+        # joka on tarjolla vasta illalla (vuoro_aikaisintaan) ---
         # Huom: speksissä oli "2 farmaria + 1 minibussi" neljälle kuskille,
         # mutta jokainen tarjolla oleva kuski tarvitsee oman ajoneuvon
         # (optimointi-endpoint vaatii sitä) — lisätty siksi 3. farmari.
@@ -190,6 +192,15 @@ async def main() -> None:
                 "koti_osoite": KOTI_KUSKI4[0], "koti_lat": KOTI_KUSKI4[1], "koti_lon": KOTI_KUSKI4[2],
             },
         )
+        # Kuukausisopimuksinen, mutta tarjolla vasta illalla (vuoro_aikaisintaan) -
+        # esim. hoitaa päivällä muita tuotannon vuokra-autohommia.
+        kuski5 = await upsert(
+            db, Kuski, tuotanto_id=tuotanto.id, nimi="Kuvaaja / vuokra-auto",
+            defaults={
+                "sopimus": SopimusTyyppi.KUUKAUSI,
+                "koti_osoite": KOTI_KUSKI5[0], "koti_lat": KOTI_KUSKI5[1], "koti_lon": KOTI_KUSKI5[2],
+            },
+        )
 
         # --- Ajoneuvot: 3 farmaria (mukavuus 3) + 1 minibussi (mukavuus 8) ---
         farmari1 = await upsert(
@@ -207,6 +218,10 @@ async def main() -> None:
         minibussi = await upsert(
             db, Ajoneuvo, tuotanto_id=tuotanto.id, nimi="Minibussi 1",
             defaults={"rekisteri": "DEF-888", "mukavuuspaikat": 8, "max_paikat": 8},
+        )
+        vuokra_auto = await upsert(
+            db, Ajoneuvo, tuotanto_id=tuotanto.id, nimi="Vuokra-auto",
+            defaults={"rekisteri": "GHI-999", "mukavuuspaikat": 3, "max_paikat": 4},
         )
 
         # --- Lokaatio + PaivaLokaatio ---
@@ -243,7 +258,8 @@ async def main() -> None:
         await upsert(db, PaivaHenkilo, paiva_id=paiva.id, henkilo_id=tr1.id)
         await upsert(db, PaivaHenkilo, paiva_id=paiva.id, henkilo_id=tr2.id)
 
-        # --- PaivaKuski (kaikki 4 tarjolla, kukin omalla ajoneuvollaan) ---
+        # --- PaivaKuski (kaikki 5 tarjolla, kukin omalla ajoneuvollaan;
+        # Kuvaaja/vuokra-auto vasta klo 18 alkaen) ---
         await upsert(
             db, PaivaKuski, paiva_id=paiva.id, kuski_id=kuski1.id,
             defaults={"ajoneuvo_id": farmari1.id, "tarjolla": True},
@@ -259,6 +275,13 @@ async def main() -> None:
         await upsert(
             db, PaivaKuski, paiva_id=paiva.id, kuski_id=kuski4.id,
             defaults={"ajoneuvo_id": farmari3.id, "tarjolla": True},
+        )
+        await upsert(
+            db, PaivaKuski, paiva_id=paiva.id, kuski_id=kuski5.id,
+            defaults={
+                "ajoneuvo_id": vuokra_auto.id, "tarjolla": True,
+                "vuoro_aikaisintaan": time(18, 0),
+            },
         )
 
         # --- Tehtävät: henkilönoudot, paluukyydit wrapin jälkeen + erikoiskeikat ---
