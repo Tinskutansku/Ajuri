@@ -93,16 +93,28 @@ CRUD-reitit perusdataentiteeteille:
 - `/ajoneuvot` (suodatus: `?tuotanto_id=`)
 - `/lokaatiot` (suodatus: `?tuotanto_id=`)
 
+CRUD-reitit päiväkohtaiselle datalle:
+
+- `/kuvauspaivat` (suodatus: `?tuotanto_id=`)
+- `/paiva-lokaatiot` (suodatus: `?paiva_id=`)
+- `/paiva-henkilot` (suodatus: `?paiva_id=`)
+- `/paiva-kuskit` (suodatus: `?paiva_id=`)
+- `/tehtavat` (suodatus: `?paiva_id=`)
+
+Ajolistaversion/keikan toiminnot (ei omaa CRUD:ia — rivit syntyvät vain
+optimoinnista):
+
+- `POST /versiot/{versio_id}/julkaise` — asettaa version julkaistuksi ja
+  poistaa julkaisun muilta saman päivän versioilta
+- `PATCH /keikat/{keikka_id}/kuittaa` — merkitsee keikan ajetuksi
+  (`kuitattu=true`), jota reoptimoinnin lukituslogiikka käyttää
+
 Optimointi (`docs/optimoija-spec.md`):
 
 - `POST /paivat/{paiva_id}/optimoi` — ratkaisee päivän kuljetustehtävät ja
   tallentaa tuloksen uutena `ajolista_versio`-versiona. Vaatii, että
   kuvauspäivän kaikilla tehtävillä ja tarjolla olevilla kuskeilla on
   koordinaatit tallennettuna (muuten `422`).
-
-Kuvauspäivien/tehtävien/kuskien päiväkohtaista CRUD:ia (`kuvauspaiva`,
-`paiva_kuski`, `tehtava` -taulut) ei ole vielä oma rajapintansa — rivit
-pitää toistaiseksi luoda suoraan tietokantaan/ORM:lla.
 
 Reititys-API on OSRM:n julkinen demo-palvelin
 (`https://router.project-osrm.org`, ks. `app/services/router_client.py`).
