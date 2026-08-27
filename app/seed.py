@@ -1,8 +1,10 @@
-"""Seed-skripti: luo yhden realistisen kuvauspäivän demo-/kehityskäyttöön.
+"""Seed-skripti: luo/päivittää yhden realistisen kuvauspäivän demo-/
+kehityskäyttöön.
 
-Idempotentti — jokainen rivi haetaan ensin luonnollisella avaimella
-(esim. tuotanto+nimi, päivä+henkilö) ja luodaan vain jos sitä ei vielä ole,
-joten skriptin voi ajaa uudelleen ilman että syntyy duplikaatteja.
+Idempotentti — jokainen rivi haetaan luonnollisella avaimella (esim.
+tuotanto+nimi, päivä+henkilö) ja jos se löytyy, sen muut kentät päivitetään
+vastaamaan tätä skriptiä. Uudelleenajo siis konvergoi aina samaan
+lopputilaan eikä koskaan luo duplikaatteja.
 
 Käyttö:
     python -m app.seed
@@ -35,6 +37,7 @@ from app.models import (
 
 TUOTANTO_NIMI = "Demo — Pääkaupunkiseutu"
 PAIVA_PVM = date(2026, 9, 15)
+WRAP = time(18, 0)
 
 # ---------------------------------------------------------------------------
 # Koordinaatit — oikeita pääkaupunkiseudun pisteitä, jotta OSRM antaa
@@ -56,27 +59,30 @@ KOTI_KUSKI3 = ("Kotiosoite, Tikkurila, Vantaa", 60.2934, 25.0378)
 KOTI_KUSKI4 = ("Kotiosoite, Leppävaara, Espoo", 60.2170, 24.8110)
 
 
-async def get_or_create(db: AsyncSession, model, defaults: dict | None = None, **kwargs):
-    """Hakee rivin annetulla luonnollisella avaimella (kwargs); jos ei
-    löydy, luo sen kwargs+defaults-kentillä. defaults ei ole osa hakua,
-    joten olemassa olevaa riviä ei koskaan päivitetä ajon yhteydessä."""
+async def upsert(db: AsyncSession, model, defaults: dict | None = None, **kwargs):
+    """Hakee rivin annetulla luonnollisella avaimella (kwargs). Jos rivi
+    löytyy, sen defaults-kentät päivitetään vastaamaan tätä ajoa; jos ei
+    löydy, rivi luodaan kwargs+defaults-kentillä. Näin skripti on aidosti
+    idempotentti myös silloin kun sisältöä muokataan ajojen välissä."""
     result = await db.execute(select(model).filter_by(**kwargs))
     instance = result.scalar_one_or_none()
-    if instance is not None:
-        return instance, False
-    instance = model(**kwargs, **(defaults or {}))
-    db.add(instance)
+    if instance is None:
+        instance = model(**kwargs, **(defaults or {}))
+        db.add(instance)
+    else:
+        for kentta, arvo in (defaults or {}).items():
+            setattr(instance, kentta, arvo)
     await db.flush()
-    return instance, True
+    return instance
 
 
 async def main() -> None:
     async with AsyncSessionLocal() as db:
-        tuotanto, _ = await get_or_create(
+        tuotanto = await upsert(
             db, Tuotanto, nimi=TUOTANTO_NIMI, defaults={"tuntihinta_eur": 22.0}
         )
 
-        paiva, _ = await get_or_create(
+        paiva = await upsert(
             db,
             Kuvauspaiva,
             tuotanto_id=tuotanto.id,
@@ -85,41 +91,41 @@ async def main() -> None:
                 "paiva_nro": "1/1",
                 "call_time": time(8, 0),
                 "lounas": time(12, 30),
-                "wrap_arvio": time(17, 30),
+                "wrap_arvio": WRAP,
                 "huomiot": "Demo-kuvauspäivä pääkaupunkiseudulla",
             },
         )
 
         # --- Henkilöt: 4 näyttelijää + ohjaaja + apulaisohjaaja + 2 tr-läistä ---
-        nayt1, _ = await get_or_create(
+        nayt1 = await upsert(
             db, Henkilo, tuotanto_id=tuotanto.id, nimi="Näyttelijä 1",
             defaults={
                 "tyyppi": HenkiloTyyppi.CAST, "roolinimi": "Pääosa",
                 "osoite": HOTELLI_KAMP[0], "lat": HOTELLI_KAMP[1], "lon": HOTELLI_KAMP[2],
             },
         )
-        nayt2, _ = await get_or_create(
+        nayt2 = await upsert(
             db, Henkilo, tuotanto_id=tuotanto.id, nimi="Näyttelijä 2",
             defaults={
                 "tyyppi": HenkiloTyyppi.CAST, "roolinimi": "Sivuosa",
                 "osoite": HOTELLI_KAMP[0], "lat": HOTELLI_KAMP[1], "lon": HOTELLI_KAMP[2],
             },
         )
-        nayt3, _ = await get_or_create(
+        nayt3 = await upsert(
             db, Henkilo, tuotanto_id=tuotanto.id, nimi="Näyttelijä 3",
             defaults={
                 "tyyppi": HenkiloTyyppi.CAST, "roolinimi": "Sivuosa",
                 "osoite": KOTI_NAYTTELIJA3[0], "lat": KOTI_NAYTTELIJA3[1], "lon": KOTI_NAYTTELIJA3[2],
             },
         )
-        nayt4, _ = await get_or_create(
+        nayt4 = await upsert(
             db, Henkilo, tuotanto_id=tuotanto.id, nimi="Näyttelijä 4",
             defaults={
                 "tyyppi": HenkiloTyyppi.CAST, "roolinimi": "Iltapäiväkohtaus",
                 "osoite": KOTI_NAYTTELIJA4[0], "lat": KOTI_NAYTTELIJA4[1], "lon": KOTI_NAYTTELIJA4[2],
             },
         )
-        ohjaaja, _ = await get_or_create(
+        ohjaaja = await upsert(
             db, Henkilo, tuotanto_id=tuotanto.id, nimi="Ohjaaja",
             defaults={
                 "tyyppi": HenkiloTyyppi.CREW, "titteli": "Ohjaaja",
@@ -127,7 +133,7 @@ async def main() -> None:
                 "lon": HOTELLI_SIMONKENTTA[2],
             },
         )
-        apulaisohjaaja, _ = await get_or_create(
+        apulaisohjaaja = await upsert(
             db, Henkilo, tuotanto_id=tuotanto.id, nimi="Apulaisohjaaja",
             defaults={
                 "tyyppi": HenkiloTyyppi.CREW, "titteli": "Apulaisohjaaja",
@@ -135,7 +141,7 @@ async def main() -> None:
                 "lon": HOTELLI_SIMONKENTTA[2], "oletus_oma_auto": True,
             },
         )
-        tr1, _ = await get_or_create(
+        tr1 = await upsert(
             db, Henkilo, tuotanto_id=tuotanto.id, nimi="Työryhmäläinen 1",
             defaults={
                 "tyyppi": HenkiloTyyppi.CREW, "titteli": "Puvustaja",
@@ -143,7 +149,7 @@ async def main() -> None:
                 "lon": HOTELLI_SIMONKENTTA[2],
             },
         )
-        tr2, _ = await get_or_create(
+        tr2 = await upsert(
             db, Henkilo, tuotanto_id=tuotanto.id, nimi="Työryhmäläinen 2",
             defaults={
                 "tyyppi": HenkiloTyyppi.CREW, "titteli": "Maskeeraaja",
@@ -156,28 +162,28 @@ async def main() -> None:
         # Huom: speksissä oli "2 farmaria + 1 minibussi" neljälle kuskille,
         # mutta jokainen tarjolla oleva kuski tarvitsee oman ajoneuvon
         # (optimointi-endpoint vaatii sitä) — lisätty siksi 3. farmari.
-        kuski1, _ = await get_or_create(
+        kuski1 = await upsert(
             db, Kuski, tuotanto_id=tuotanto.id, nimi="Kuski 1",
             defaults={
                 "sopimus": SopimusTyyppi.KUUKAUSI,
                 "koti_osoite": KOTI_KUSKI1[0], "koti_lat": KOTI_KUSKI1[1], "koti_lon": KOTI_KUSKI1[2],
             },
         )
-        kuski2, _ = await get_or_create(
+        kuski2 = await upsert(
             db, Kuski, tuotanto_id=tuotanto.id, nimi="Kuski 2",
             defaults={
                 "sopimus": SopimusTyyppi.KUUKAUSI,
                 "koti_osoite": KOTI_KUSKI2[0], "koti_lat": KOTI_KUSKI2[1], "koti_lon": KOTI_KUSKI2[2],
             },
         )
-        kuski3, _ = await get_or_create(
+        kuski3 = await upsert(
             db, Kuski, tuotanto_id=tuotanto.id, nimi="Kuski 3",
             defaults={
                 "sopimus": SopimusTyyppi.PAIVA,
                 "koti_osoite": KOTI_KUSKI3[0], "koti_lat": KOTI_KUSKI3[1], "koti_lon": KOTI_KUSKI3[2],
             },
         )
-        kuski4, _ = await get_or_create(
+        kuski4 = await upsert(
             db, Kuski, tuotanto_id=tuotanto.id, nimi="Kuski 4 (extra)",
             defaults={
                 "sopimus": SopimusTyyppi.TUNTI, "tuntihinta_eur": 24.0,
@@ -186,87 +192,89 @@ async def main() -> None:
         )
 
         # --- Ajoneuvot: 3 farmaria (mukavuus 3) + 1 minibussi (mukavuus 8) ---
-        farmari1, _ = await get_or_create(
+        farmari1 = await upsert(
             db, Ajoneuvo, tuotanto_id=tuotanto.id, nimi="Farmari 1",
             defaults={"rekisteri": "ABC-111", "mukavuuspaikat": 3, "max_paikat": 4},
         )
-        farmari2, _ = await get_or_create(
+        farmari2 = await upsert(
             db, Ajoneuvo, tuotanto_id=tuotanto.id, nimi="Farmari 2",
             defaults={"rekisteri": "ABC-222", "mukavuuspaikat": 3, "max_paikat": 4},
         )
-        farmari3, _ = await get_or_create(
+        farmari3 = await upsert(
             db, Ajoneuvo, tuotanto_id=tuotanto.id, nimi="Farmari 3",
             defaults={"rekisteri": "ABC-333", "mukavuuspaikat": 3, "max_paikat": 4},
         )
-        minibussi, _ = await get_or_create(
+        minibussi = await upsert(
             db, Ajoneuvo, tuotanto_id=tuotanto.id, nimi="Minibussi 1",
             defaults={"rekisteri": "DEF-888", "mukavuuspaikat": 8, "max_paikat": 8},
         )
 
         # --- Lokaatio + PaivaLokaatio ---
-        kuvauspaikka_lokaatio, _ = await get_or_create(
+        kuvauspaikka_lokaatio = await upsert(
             db, Lokaatio, tuotanto_id=tuotanto.id, nimi="Kuvauspaikka",
             defaults={
                 "osoite": KUVAUSPAIKKA[0], "lat": KUVAUSPAIKKA[1], "lon": KUVAUSPAIKKA[2],
             },
         )
-        await get_or_create(
+        await upsert(
             db, PaivaLokaatio, paiva_id=paiva.id, lokaatio_id=kuvauspaikka_lokaatio.id,
             defaults={"jarjestys": 1},
         )
 
         # --- PaivaHenkilo (kaikki 8, apulaisohjaajalla oma auto -> ei kuljetusta) ---
-        await get_or_create(
+        await upsert(
             db, PaivaHenkilo, paiva_id=paiva.id, henkilo_id=nayt1.id,
-            defaults={"oma_call": time(7, 15)},
+            defaults={"oma_call": time(6, 30)},
         )
-        await get_or_create(db, PaivaHenkilo, paiva_id=paiva.id, henkilo_id=nayt2.id)
-        await get_or_create(
+        await upsert(db, PaivaHenkilo, paiva_id=paiva.id, henkilo_id=nayt2.id)
+        await upsert(
             db, PaivaHenkilo, paiva_id=paiva.id, henkilo_id=nayt3.id,
             defaults={"oma_call": time(8, 30)},
         )
-        await get_or_create(
+        await upsert(
             db, PaivaHenkilo, paiva_id=paiva.id, henkilo_id=nayt4.id,
             defaults={"oma_call": time(14, 45)},
         )
-        await get_or_create(db, PaivaHenkilo, paiva_id=paiva.id, henkilo_id=ohjaaja.id)
-        await get_or_create(
+        await upsert(db, PaivaHenkilo, paiva_id=paiva.id, henkilo_id=ohjaaja.id)
+        await upsert(
             db, PaivaHenkilo, paiva_id=paiva.id, henkilo_id=apulaisohjaaja.id,
             defaults={"oma_auto": True, "siirtyy": False},
         )
-        await get_or_create(db, PaivaHenkilo, paiva_id=paiva.id, henkilo_id=tr1.id)
-        await get_or_create(db, PaivaHenkilo, paiva_id=paiva.id, henkilo_id=tr2.id)
+        await upsert(db, PaivaHenkilo, paiva_id=paiva.id, henkilo_id=tr1.id)
+        await upsert(db, PaivaHenkilo, paiva_id=paiva.id, henkilo_id=tr2.id)
 
         # --- PaivaKuski (kaikki 4 tarjolla, kukin omalla ajoneuvollaan) ---
-        await get_or_create(
+        await upsert(
             db, PaivaKuski, paiva_id=paiva.id, kuski_id=kuski1.id,
             defaults={"ajoneuvo_id": farmari1.id, "tarjolla": True},
         )
-        await get_or_create(
+        await upsert(
             db, PaivaKuski, paiva_id=paiva.id, kuski_id=kuski2.id,
             defaults={"ajoneuvo_id": farmari2.id, "tarjolla": True},
         )
-        await get_or_create(
+        await upsert(
             db, PaivaKuski, paiva_id=paiva.id, kuski_id=kuski3.id,
             defaults={"ajoneuvo_id": minibussi.id, "tarjolla": True},
         )
-        await get_or_create(
+        await upsert(
             db, PaivaKuski, paiva_id=paiva.id, kuski_id=kuski4.id,
             defaults={"ajoneuvo_id": farmari3.id, "tarjolla": True},
         )
 
-        # --- Tehtävät: henkilönoudot + 3 käsin tehtyä erikoiskeikkaa ---
-        await get_or_create(
+        # --- Tehtävät: henkilönoudot, paluukyydit wrapin jälkeen + erikoiskeikat ---
+        await upsert(
             db, Tehtava, paiva_id=paiva.id, nimi="Nouto: Näyttelijä 1 (maski)",
             defaults={
                 "tyyppi": TehtavaTyyppi.HENKILO, "henkilo_id": nayt1.id, "henkiloita": 1,
                 "mista_osoite": HOTELLI_KAMP[0], "mista_lat": HOTELLI_KAMP[1], "mista_lon": HOTELLI_KAMP[2],
                 "mihin_osoite": KUVAUSPAIKKA[0], "mihin_lat": KUVAUSPAIKKA[1], "mihin_lon": KUVAUSPAIKKA[2],
-                "perilla_viimeistaan": time(7, 15),
-                "huomiot": "maski 1,5 h ennen calliä",
+                "perilla_viimeistaan": time(6, 30),
+                "lukittu_kuski_id": kuski1.id,
+                "huomiot": "maski 1,5 h ennen calliä - päivän ensimmäinen call. "
+                           "Kuski 1 hakee aina Näyttelijä 1:n (kiinteä kuski koko päiväksi).",
             },
         )
-        await get_or_create(
+        await upsert(
             db, Tehtava, paiva_id=paiva.id, nimi="Nouto: Näyttelijä 2",
             defaults={
                 "tyyppi": TehtavaTyyppi.HENKILO, "henkilo_id": nayt2.id, "henkiloita": 1,
@@ -275,7 +283,7 @@ async def main() -> None:
                 "perilla_viimeistaan": time(8, 0),
             },
         )
-        await get_or_create(
+        await upsert(
             db, Tehtava, paiva_id=paiva.id, nimi="Nouto: Näyttelijä 3",
             defaults={
                 "tyyppi": TehtavaTyyppi.HENKILO, "henkilo_id": nayt3.id, "henkiloita": 1,
@@ -285,7 +293,7 @@ async def main() -> None:
                 "perilla_viimeistaan": time(8, 30),
             },
         )
-        await get_or_create(
+        await upsert(
             db, Tehtava, paiva_id=paiva.id, nimi="Nouto: Näyttelijä 4 (iltapäiväkohtaus)",
             defaults={
                 "tyyppi": TehtavaTyyppi.HENKILO, "henkilo_id": nayt4.id, "henkiloita": 1,
@@ -295,7 +303,7 @@ async def main() -> None:
                 "perilla_viimeistaan": time(14, 45),
             },
         )
-        await get_or_create(
+        await upsert(
             db, Tehtava, paiva_id=paiva.id, nimi="Nouto: Ohjaaja",
             defaults={
                 "tyyppi": TehtavaTyyppi.HENKILO, "henkilo_id": ohjaaja.id, "henkiloita": 1,
@@ -305,7 +313,7 @@ async def main() -> None:
                 "perilla_viimeistaan": time(8, 0),
             },
         )
-        await get_or_create(
+        await upsert(
             db, Tehtava, paiva_id=paiva.id, nimi="Työryhmä-shuttle (2 hlö)",
             defaults={
                 "tyyppi": TehtavaTyyppi.HENKILO, "henkiloita": 2,
@@ -316,7 +324,7 @@ async def main() -> None:
                 "huomiot": "Työryhmäläinen 1 + Työryhmäläinen 2",
             },
         )
-        await get_or_create(
+        await upsert(
             db, Tehtava, paiva_id=paiva.id, nimi="Lounashaku",
             defaults={
                 "tyyppi": TehtavaTyyppi.TAVARA, "henkiloita": 0,
@@ -326,7 +334,17 @@ async def main() -> None:
                 "huomiot": "ruoka settiin ennen lounasta",
             },
         )
-        await get_or_create(
+        await upsert(
+            db, Tehtava, paiva_id=paiva.id, nimi="Rekvisiitan haku toimistolta",
+            defaults={
+                "tyyppi": TehtavaTyyppi.TAVARA, "henkiloita": 0,
+                "mista_osoite": TOIMISTO[0], "mista_lat": TOIMISTO[1], "mista_lon": TOIMISTO[2],
+                "mihin_osoite": KUVAUSPAIKKA[0], "mihin_lat": KUVAUSPAIKKA[1], "mihin_lon": KUVAUSPAIKKA[2],
+                "nouto_aikaisintaan": time(10, 0), "perilla_viimeistaan": time(11, 0),
+                "huomiot": "aamupäivän rekvisiittatäydennys",
+            },
+        )
+        await upsert(
             db, Tehtava, paiva_id=paiva.id, nimi="Kortit toimistolle",
             defaults={
                 "tyyppi": TehtavaTyyppi.TAVARA, "henkiloita": 0,
@@ -336,7 +354,7 @@ async def main() -> None:
                 "huomiot": "päivän kuvausmateriaali toimistolle",
             },
         )
-        await get_or_create(
+        await upsert(
             db, Tehtava, paiva_id=paiva.id, nimi="Lentokenttänouto (vieraileva näyttelijä)",
             defaults={
                 "tyyppi": TehtavaTyyppi.HENKILO, "henkiloita": 1,
@@ -348,10 +366,77 @@ async def main() -> None:
             },
         )
 
+        # --- Paluukyydit wrapin jälkeen (klo 18:00, max 25 min odotusta) ---
+        await upsert(
+            db, Tehtava, paiva_id=paiva.id, nimi="Paluu: Näyttelijä 1",
+            defaults={
+                "tyyppi": TehtavaTyyppi.PALUU, "henkilo_id": nayt1.id, "henkiloita": 1,
+                "mista_osoite": KUVAUSPAIKKA[0], "mista_lat": KUVAUSPAIKKA[1], "mista_lon": KUVAUSPAIKKA[2],
+                "mihin_osoite": HOTELLI_KAMP[0], "mihin_lat": HOTELLI_KAMP[1], "mihin_lon": HOTELLI_KAMP[2],
+                "nouto_aikaisintaan": WRAP, "nouto_viimeistaan": time(18, 25),
+                "lukittu_kuski_id": kuski1.id,
+            },
+        )
+        await upsert(
+            db, Tehtava, paiva_id=paiva.id, nimi="Paluu: Näyttelijä 2",
+            defaults={
+                "tyyppi": TehtavaTyyppi.PALUU, "henkilo_id": nayt2.id, "henkiloita": 1,
+                "mista_osoite": KUVAUSPAIKKA[0], "mista_lat": KUVAUSPAIKKA[1], "mista_lon": KUVAUSPAIKKA[2],
+                "mihin_osoite": HOTELLI_KAMP[0], "mihin_lat": HOTELLI_KAMP[1], "mihin_lon": HOTELLI_KAMP[2],
+                "nouto_aikaisintaan": WRAP, "nouto_viimeistaan": time(18, 25),
+            },
+        )
+        await upsert(
+            db, Tehtava, paiva_id=paiva.id, nimi="Paluu: Näyttelijä 3",
+            defaults={
+                "tyyppi": TehtavaTyyppi.PALUU, "henkilo_id": nayt3.id, "henkiloita": 1,
+                "mista_osoite": KUVAUSPAIKKA[0], "mista_lat": KUVAUSPAIKKA[1], "mista_lon": KUVAUSPAIKKA[2],
+                "mihin_osoite": KOTI_NAYTTELIJA3[0], "mihin_lat": KOTI_NAYTTELIJA3[1],
+                "mihin_lon": KOTI_NAYTTELIJA3[2],
+                "nouto_aikaisintaan": WRAP, "nouto_viimeistaan": time(18, 25),
+            },
+        )
+        await upsert(
+            db, Tehtava, paiva_id=paiva.id, nimi="Paluu: Näyttelijä 4",
+            defaults={
+                "tyyppi": TehtavaTyyppi.PALUU, "henkilo_id": nayt4.id, "henkiloita": 1,
+                "mista_osoite": KUVAUSPAIKKA[0], "mista_lat": KUVAUSPAIKKA[1], "mista_lon": KUVAUSPAIKKA[2],
+                "mihin_osoite": KOTI_NAYTTELIJA4[0], "mihin_lat": KOTI_NAYTTELIJA4[1],
+                "mihin_lon": KOTI_NAYTTELIJA4[2],
+                "nouto_aikaisintaan": WRAP, "nouto_viimeistaan": time(18, 25),
+            },
+        )
+        await upsert(
+            db, Tehtava, paiva_id=paiva.id, nimi="Paluu: Ohjaaja + työryhmä (3 hlö)",
+            defaults={
+                "tyyppi": TehtavaTyyppi.PALUU, "henkiloita": 3,
+                "mista_osoite": KUVAUSPAIKKA[0], "mista_lat": KUVAUSPAIKKA[1], "mista_lon": KUVAUSPAIKKA[2],
+                "mihin_osoite": HOTELLI_SIMONKENTTA[0], "mihin_lat": HOTELLI_SIMONKENTTA[1],
+                "mihin_lon": HOTELLI_SIMONKENTTA[2],
+                "nouto_aikaisintaan": WRAP, "nouto_viimeistaan": time(18, 25),
+                "huomiot": "Ohjaaja + Työryhmäläinen 1 + Työryhmäläinen 2",
+            },
+        )
+        await upsert(
+            db, Tehtava, paiva_id=paiva.id, nimi="Paluu: vieraileva näyttelijä lentokentälle",
+            defaults={
+                "tyyppi": TehtavaTyyppi.PALUU, "henkiloita": 1, "yksin": True,
+                "mista_osoite": KUVAUSPAIKKA[0], "mista_lat": KUVAUSPAIKKA[1], "mista_lon": KUVAUSPAIKKA[2],
+                "mihin_osoite": LENTOASEMA[0], "mihin_lat": LENTOASEMA[1], "mihin_lon": LENTOASEMA[2],
+                "nouto_aikaisintaan": WRAP, "nouto_viimeistaan": time(18, 20),
+                "huomiot": "lento klo 20:10 - ei odotuttamista, ei kimppakyytiä",
+            },
+        )
+
         await db.commit()
 
+        tehtava_maara = (
+            await db.execute(select(Tehtava).where(Tehtava.paiva_id == paiva.id))
+        ).scalars().all()
+
         print(f"Tuotanto: {tuotanto.nimi} (id={tuotanto.id})")
-        print(f"Kuvauspäivä: {paiva.pvm} (id={paiva.id})")
+        print(f"Kuvauspäivä: {paiva.pvm} (id={paiva.id}), call {paiva.call_time}, wrap {paiva.wrap_arvio}")
+        print(f"Tehtäviä yhteensä: {len(tehtava_maara)}")
         print("Valmis. Kokeile optimointia:")
         print(f"  POST /paivat/{paiva.id}/optimoi")
 
