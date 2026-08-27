@@ -21,9 +21,12 @@ app/
     kustannus.py        Kuskin päivän lisäkustannus sopimustyypin mukaan
     matka_cache.py       Ajoaikojen välimuisti (Matka-taulu)
     router_client.py     Reititys-API-abstraktio (OSRM julkinen demo)
+  seed.py         Luo/päivittää realistisen demo-kuvauspäivän (python -m app.seed)
 alembic/          Tietokantamigraatiot
 tests/            Pytest-testit
+frontend/         Vite + React -demofrontti (ks. frontend/README.md)
 docs/optimoija-spec.md   Optimoijaservicen speksi
+docs/tuotekartta.md      Jatkokehityksen vaiheet
 ajolista_optimoija.py    Alkuperäinen OR-Tools-prototyyppi (viitteeksi)
 ```
 
@@ -120,3 +123,25 @@ Reititys-API on OSRM:n julkinen demo-palvelin
 (`https://router.project-osrm.org`, ks. `app/services/router_client.py`).
 Se ei sovi tuotantokäyttöön (ei SLA:ta, rate limit) — vaihda
 `OSRMRouterClient` toiseen `RouterClient`-toteutukseen tuotantoa varten.
+
+## Demo-data
+
+```
+python -m app.seed
+```
+
+Luo (tai päivittää idempotentisti) yhden realistisen kuvauspäivän oikeilla
+pääkaupunkiseudun koordinaateilla — ks. `docs/tuotekartta.md`.
+
+## Frontend-demo
+
+```
+cd frontend
+cp .env.example .env
+npm install
+npm run dev
+```
+
+Avaa http://localhost:5173. Vaatii backendin pyörimässä portissa 8000 —
+CORS on sallittu porttiin 5173 (`app/config.py: cors_origins`). Ks.
+`frontend/README.md`.
