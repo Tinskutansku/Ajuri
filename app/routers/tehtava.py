@@ -19,18 +19,26 @@ async def luo_tehtava(data: TehtavaCreate, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("", response_model=list[TehtavaRead])
-async def listaa_tehtavat(paiva_id: int | None = None, db: AsyncSession = Depends(get_db)):
+async def listaa_tehtavat(
+    paiva_id: int | None = None,
+    sisalla_passiiviset: bool = False,
+    db: AsyncSession = Depends(get_db),
+):
     stmt = select(Tehtava).order_by(Tehtava.id)
     if paiva_id is not None:
         stmt = stmt.where(Tehtava.paiva_id == paiva_id)
+    if not sisalla_passiiviset:
+        stmt = stmt.where(Tehtava.aktiivinen.is_(True))
     result = await db.execute(stmt)
     return result.scalars().all()
 
 
 @router.get("/{tehtava_id}", response_model=TehtavaRead)
-async def hae_tehtava(tehtava_id: int, db: AsyncSession = Depends(get_db)):
+async def hae_tehtava(
+    tehtava_id: int, sisalla_passiiviset: bool = False, db: AsyncSession = Depends(get_db)
+):
     tehtava = await db.get(Tehtava, tehtava_id)
-    if tehtava is None:
+    if tehtava is None or (not sisalla_passiiviset and not tehtava.aktiivinen):
         raise HTTPException(status_code=404, detail="Tehtävää ei löytynyt")
     return tehtava
 
@@ -54,5 +62,5 @@ async def poista_tehtava(tehtava_id: int, db: AsyncSession = Depends(get_db)):
     tehtava = await db.get(Tehtava, tehtava_id)
     if tehtava is None:
         raise HTTPException(status_code=404, detail="Tehtävää ei löytynyt")
-    await db.delete(tehtava)
+    tehtava.aktiivinen = False
     await db.commit()

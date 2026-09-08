@@ -86,6 +86,22 @@ async def test_kuvauspaiva_ja_paivakohtaiset_rivit(client):
     vastaus = await client.get(f"/tehtavat/{tehtava_id}")
     assert vastaus.status_code == 404
 
+    # Soft delete (vaihe B2): rivi löytyy yhä sisalla_passiiviset=true:lla
+    vastaus = await client.get(f"/tehtavat/{tehtava_id}", params={"sisalla_passiiviset": True})
+    assert vastaus.status_code == 200
+    assert vastaus.json()["aktiivinen"] is False
+
+    vastaus = await client.get("/tehtavat", params={"paiva_id": paiva["id"]})
+    assert vastaus.status_code == 200
+    assert vastaus.json() == []
+
+    vastaus = await client.get(
+        "/tehtavat", params={"paiva_id": paiva["id"], "sisalla_passiiviset": True}
+    )
+    assert vastaus.status_code == 200
+    assert len(vastaus.json()) == 1
+    assert vastaus.json()[0]["id"] == tehtava_id
+
 
 async def test_kuvauspaiva_404(client):
     vastaus = await client.get("/kuvauspaivat/999")

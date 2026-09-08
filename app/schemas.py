@@ -197,6 +197,7 @@ class PaivaHenkiloBase(BaseModel):
     oma_auto: bool = False
     ei_paluuta: bool = False
     siirtyy: bool = True
+    siirtyma_klo: time | None = None
     huomiot: str | None = None
 
 
@@ -258,6 +259,7 @@ class TehtavaBase(BaseModel):
     perilla_aikaisintaan: time | None = None
     perilla_viimeistaan: time | None = None
     generoitu: bool = False
+    aktiivinen: bool = True
     lukittu_kuski_id: int | None = None
     yksin: bool = False
     huomiot: str | None = None
@@ -272,6 +274,11 @@ class TehtavaRead(TehtavaBase):
 
     id: int
     paiva_id: int
+
+
+class TehtavaGenerointiVastaus(BaseModel):
+    tehtavat: list[TehtavaRead]
+    varoitus: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -289,6 +296,7 @@ class AjolistaVersioRead(BaseModel):
     luoja_id: int | None
     kokonaiskustannus_eur: float | None
     julkaistu: bool
+    tunniste: str | None
     kommentti: str | None
 
 

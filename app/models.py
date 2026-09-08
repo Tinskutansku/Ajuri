@@ -194,6 +194,7 @@ class PaivaHenkilo(Base):
     oma_auto: Mapped[bool] = mapped_column(default=False)
     ei_paluuta: Mapped[bool] = mapped_column(default=False)
     siirtyy: Mapped[bool] = mapped_column(default=True)
+    siirtyma_klo: Mapped[time | None]                              # NULL = lokaation yleinen siirtyma_klo
     huomiot: Mapped[str | None] = mapped_column(Text)              # "muistuta matkatavarat"
 
     paiva: Mapped["Kuvauspaiva"] = relationship(back_populates="henkilot")
@@ -241,6 +242,7 @@ class Tehtava(Base):
     perilla_aikaisintaan: Mapped[time | None]
     perilla_viimeistaan: Mapped[time | None]
     generoitu: Mapped[bool] = mapped_column(default=False)         # softan luonnos vs käsin
+    aktiivinen: Mapped[bool] = mapped_column(default=True)         # soft delete: vanhat versiot viittaavat yhä
     lukittu_kuski_id: Mapped[int | None] = mapped_column(ForeignKey("kuski.id"))  # "Tiina hakee aina X:n"
     yksin: Mapped[bool] = mapped_column(default=False)             # ei kimppakyytiä
     huomiot: Mapped[str | None] = mapped_column(Text)              # "lento laskeutuu 15:25"
@@ -262,6 +264,7 @@ class AjolistaVersio(Base):
     luoja_id: Mapped[int | None] = mapped_column(ForeignKey("kayttaja.id"))
     kokonaiskustannus_eur: Mapped[float | None]                    # vain tuotanto/koordi näkee
     julkaistu: Mapped[bool] = mapped_column(default=False)         # jaettu kuskeille
+    tunniste: Mapped[str | None] = mapped_column(String(20))       # call sheet -väri: WHITE, BLUE...
     kommentti: Mapped[str | None] = mapped_column(Text)            # "Näyttelijä X sairastui, v2"
 
     paiva: Mapped["Kuvauspaiva"] = relationship(back_populates="versiot")

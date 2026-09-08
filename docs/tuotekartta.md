@@ -26,12 +26,16 @@ Vaihe 1 → 2 -logiikka:
 - `paiva_henkilo.siirtyma_klo`: henkilökohtainen siirtymäaika, joka ohittaa
   lokaation yleisen ajan (kaikki eivät siirry samaan aikaan)
 - Generoidut rivit `generoitu=true`; uudelleengenerointi korvaa VAIN omat
-  rivinsä, ei koskaan käsin lisättyjä
-- Jos päivälle on jo optimoitu ajolista (tehtäviin viittaa keikkoja): 409
-  selkeällä ohjeella. Kunnollinen ratkaisu vaiheessa B2.
-- Endpoint: `POST /paivat/{id}/generoi-tehtavat`
+  rivinsä, ei koskaan käsin lisättyjä — soft delete (vaihe B2) pitää tämän
+  turvallisena vaikka päivälle olisi jo optimoitu ajolista
+- Jos päivällä on julkaistu ajolistaversio, generointi silti onnistuu —
+  vastauksessa `varoitus`-kenttä muistuttaa ajamaan optimoinnin uudelleen,
+  koska julkaistu versio ei automaattisesti sisällä juuri generoituja
+  tehtäviä
+- Endpoint: `POST /paivat/{id}/generoi-tehtavat` →
+  `{"tehtavat": [...], "varoitus": string | null}`
 
-## Vaihe B2 — Tehtävien soft delete + versioiden värikoodaus
+## Vaihe B2 — Tehtävien soft delete + versioiden värikoodaus (valmis)
 
 Ongelma: kun call sheet muuttuu ja tehtävät generoidaan uudelleen, vanhoja
 tehtäviä ei voi poistaa — niihin viittaa aiempien ajolistaversioiden keikkoja,
@@ -39,16 +43,22 @@ ja vanhat versiot on nimenomaan säilytettävä (pitää voida tarkistaa jälkik
 minkä listan mukaan mentiin).
 
 **Soft delete:**
-- `tehtava.aktiivinen: bool = True` (tai `korvattu_pvm`) + migraatio
+- `tehtava.aktiivinen: bool = True` + migraatio
 - Uudelleengenerointi ei poista rivejä vaan merkitsee vanhat generoidut
-  passiivisiksi ja luo uudet
-- Optimointi käyttää vain aktiivisia tehtäviä
-- Vanhat versiot säilyvät ehjinä, FK-ongelma katoaa kokonaan
+  passiivisiksi ja luo uudet; `DELETE /tehtavat/{id}` (myös käsin luodut)
+  toimii samoin
+- `GET /tehtavat` ja `GET /tehtavat/{id}` piilottavat passiiviset oletuksena;
+  `sisalla_passiiviset=true` näyttää myös ne (historiakatselu)
+- Optimointi käyttää vain aktiivisia tehtäviä — lukitun (kuitatun) keikan
+  tehtävä näytetään silti oikein vaikka se olisi sittemmin passivoitu
+- Vanhat versiot säilyvät ehjinä, FK-ongelma katosi kokonaan — vaiheen B
+  väliaikainen 409-esto poistui tarpeettomana
 
 **Versioiden värikoodaus:**
-- `ajolista_versio.tunniste`: WHITE, BLUE, PINK, YELLOW… alan vakiintuneessa
-  järjestyksessä, sama käytäntö kuin call sheeteissä
-- Seuraava väri annetaan automaattisesti kun versio julkaistaan
+- `ajolista_versio.tunniste`: WHITE, BLUE, PINK, YELLOW, kiertyy numeroituna
+  ("2. WHITE"…) neljännen jälkeen, oma kierto per päivä
+- Seuraava väri annetaan automaattisesti kun versio julkaistaan;
+  jo väritetty versio ei väritetä uudelleen
 - Blue call sheet → blue ajolista: dokumentit puhuvat samaa kieltä, ja
   "minkä listan mukaan mennään" on yksiselitteinen kysymys
 

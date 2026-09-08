@@ -91,7 +91,13 @@ async def optimoi_paiva(
             )
 
     kaikki_tehtavat = (
-        (await db.execute(select(Tehtava).where(Tehtava.paiva_id == paiva_id)))
+        (
+            await db.execute(
+                select(Tehtava).where(
+                    Tehtava.paiva_id == paiva_id, Tehtava.aktiivinen.is_(True)
+                )
+            )
+        )
         .scalars()
         .all()
     )
@@ -146,6 +152,18 @@ async def optimoi_paiva(
             lukitut_map[kk.tehtava_id] = kk
         else:
             edellinen_kuski_map[kk.tehtava_id] = kk.paiva_kuski_id
+
+    # Lukitun keikan tehtävä on saatettu passivoida (soft delete) sen jälkeen
+    # kun keikka luotiin - se ei silloin ole kaikki_tehtavat-listalla, vaikka
+    # sitä yhä tarvitaan lukitun keikan näyttämiseen. Täydennä puuttuvat.
+    puuttuvat_tehtava_id = set(lukitut_map) - set(tehtava_by_id)
+    if puuttuvat_tehtava_id:
+        lisatehtavat = (
+            (await db.execute(select(Tehtava).where(Tehtava.id.in_(puuttuvat_tehtava_id))))
+            .scalars()
+            .all()
+        )
+        tehtava_by_id.update({t.id: t for t in lisatehtavat})
 
     # kuskin lähtötila: viimeisen lukitun keikan jättöpaikka/-aika, jos on
     kuskin_alkutila: dict[int, tuple[tuple[float, float], int]] = {}

@@ -14,6 +14,7 @@ from app.routers import (
     paiva_kuski,
     paiva_lokaatio,
     tehtava,
+    tehtava_generointi,
     tuotanto,
     versiot,
 )
@@ -37,6 +38,7 @@ app.include_router(paiva_lokaatio.router)
 app.include_router(paiva_henkilo.router)
 app.include_router(paiva_kuski.router)
 app.include_router(tehtava.router)
+app.include_router(tehtava_generointi.router)
 app.include_router(versiot.router)
 app.include_router(keikat.router)
 app.include_router(optimointi.router)
