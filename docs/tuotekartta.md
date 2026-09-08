@@ -18,22 +18,56 @@ datan saa sisään API:sta.
 - Pieni mutta tärkeä: `PATCH /keikat/{id}/kuittaa` (`kuitattu=true`) —
   reoptimoinnin lukituslogiikka tarvitsee tämän ollakseen käyttökelpoinen
 
-Ei uutta migraatiota — kaikki taulut olivat jo ensimmäisessä migraatiossa.
-
 ## Vaihe B — Tehtävägenerointi
 
 Vaihe 1 → 2 -logiikka:
 - Nouto ennen callia (oma call tai yleinen) → siirtymä → paluu wrapissa
 - Poikkeusliput per henkilö: oma_auto, ei_paluuta, siirtyy
+- `paiva_henkilo.siirtyma_klo`: henkilökohtainen siirtymäaika, joka ohittaa
+  lokaation yleisen ajan (kaikki eivät siirry samaan aikaan)
 - Generoidut rivit `generoitu=true`; uudelleengenerointi korvaa VAIN omat
   rivinsä, ei koskaan käsin lisättyjä
+- Jos päivälle on jo optimoitu ajolista (tehtäviin viittaa keikkoja): 409
+  selkeällä ohjeella. Kunnollinen ratkaisu vaiheessa B2.
 - Endpoint: `POST /paivat/{id}/generoi-tehtavat`
 
-## Vaihe C — V1.1 Bufferit (pieni sessio, spec §8)
+## Vaihe B2 — Tehtävien soft delete + versioiden värikoodaus
 
-- `kuski.pickup_bufferi_min`, `henkilo.nouto_bufferi_min` + migraatio
-- Transit-callback: noutosolmun kestoon molemmat bufferit
-- Näkyvyys: henkilöbufferi vain TUOTANTO/KOORDI (ei tulosteisiin, ei kuskeille)
+Ongelma: kun call sheet muuttuu ja tehtävät generoidaan uudelleen, vanhoja
+tehtäviä ei voi poistaa — niihin viittaa aiempien ajolistaversioiden keikkoja,
+ja vanhat versiot on nimenomaan säilytettävä (pitää voida tarkistaa jälkikäteen
+minkä listan mukaan mentiin).
+
+**Soft delete:**
+- `tehtava.aktiivinen: bool = True` (tai `korvattu_pvm`) + migraatio
+- Uudelleengenerointi ei poista rivejä vaan merkitsee vanhat generoidut
+  passiivisiksi ja luo uudet
+- Optimointi käyttää vain aktiivisia tehtäviä
+- Vanhat versiot säilyvät ehjinä, FK-ongelma katoaa kokonaan
+
+**Versioiden värikoodaus:**
+- `ajolista_versio.tunniste`: WHITE, BLUE, PINK, YELLOW… alan vakiintuneessa
+  järjestyksessä, sama käytäntö kuin call sheeteissä
+- Seuraava väri annetaan automaattisesti kun versio julkaistaan
+- Blue call sheet → blue ajolista: dokumentit puhuvat samaa kieltä, ja
+  "minkä listan mukaan mennään" on yksiselitteinen kysymys
+
+## Vaihe C — V1.1 Bufferit ja henkilökohtaiset aikapreferenssit (spec §8)
+
+Yksi migraatio, kolme kenttää — kaikki samaa perhettä (henkilö- ja
+kuskikohtaisia aikasäätöjä optimoinnin oletusten päälle):
+
+- `kuski.pickup_bufferi_min` — kuskikohtainen palveluaika (noudot kestävät
+  kauemmin joillakin)
+- `henkilo.nouto_bufferi_min` — henkilökohtainen palveluaika (tyypillisesti
+  myöhässä noudosta)
+- `henkilo.max_etuajassa_min` — kuinka paljon ennen call timea henkilö
+  suostuu olemaan perillä; ohittaa globaalin 30 min oletuksen. Generointi
+  laskee tästä `perilla_aikaisintaan`.
+
+Optimoijamuutos: transit-callback lisää noutosolmun kestoon molemmat bufferit.
+Näkyvyys: henkilökohtaiset kentät vain TUOTANTO/KOORDI (syy voi olla arkaluontoinen)
+— ei tulosteisiin eikä kuskien näkymiin.
 
 ## Vaihe D — React-frontti
 
