@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from datetime import date, datetime, time
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.models import HenkiloTyyppi, SopimusTyyppi, TehtavaTyyppi
 
@@ -48,6 +48,8 @@ class HenkiloBase(BaseModel):
     lon: float | None = None
     oletus_oma_auto: bool = False
     oletus_yksin: bool = False
+    nouto_bufferi_min: int = 0
+    max_etuajassa_min: int | None = Field(default=None, ge=0, le=240)
     huomiot: str | None = None
 
 
@@ -75,6 +77,7 @@ class KuskiBase(BaseModel):
     koti_osoite: str | None = None
     koti_lat: float | None = None
     koti_lon: float | None = None
+    pickup_bufferi_min: int = 0
 
 
 class KuskiCreate(KuskiBase):

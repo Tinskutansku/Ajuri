@@ -12,7 +12,7 @@ enää sen jälkeen kun se on poistettu kannasta (docs/tuotekartta.md,
 vaihe B2).
 """
 
-from datetime import datetime, time, timedelta
+from datetime import time
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select, update
@@ -40,7 +40,11 @@ JULKAISTU_VAROITUS = (
 
 
 def _lisaa_minuutteja(klo: time, minuutit: int) -> time:
-    return (datetime.combine(datetime.min, klo) + timedelta(minutes=minuutit)).time()
+    """Kellonaika-aritmetiikkaa vuorokauden yli kiertäen (24 h modulo).
+    Toimii myös negatiivisilla arvoilla (esim. max_etuajassa_min-vähennys)
+    ilman datetime-objektien vuosirajojen ylivuotoriskiä."""
+    kokonais = (klo.hour * 60 + klo.minute + minuutit) % (24 * 60)
+    return time(hour=kokonais // 60, minute=kokonais % 60)
 
 
 @router.post("/paivat/{paiva_id}/generoi-tehtavat", response_model=TehtavaGenerointiVastaus)
@@ -86,6 +90,12 @@ async def generoi_tehtavat(paiva_id: int, db: AsyncSession = Depends(get_db)):
         if ph.oma_auto:
             continue
         henkilo = ph.henkilo
+        perilla_viimeistaan = ph.oma_call or paiva.call_time
+        perilla_aikaisintaan = (
+            _lisaa_minuutteja(perilla_viimeistaan, -henkilo.max_etuajassa_min)
+            if henkilo.max_etuajassa_min is not None
+            else None
+        )
 
         uudet.append(
             Tehtava(
@@ -100,7 +110,8 @@ async def generoi_tehtavat(paiva_id: int, db: AsyncSession = Depends(get_db)):
                 mihin_osoite=ensimmainen.osoite or "",
                 mihin_lat=ensimmainen.lat,
                 mihin_lon=ensimmainen.lon,
-                perilla_viimeistaan=ph.oma_call or paiva.call_time,
+                perilla_aikaisintaan=perilla_aikaisintaan,
+                perilla_viimeistaan=perilla_viimeistaan,
                 generoitu=True,
                 yksin=henkilo.oletus_yksin,
             )

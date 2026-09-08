@@ -52,6 +52,7 @@ class TehtavaRow:
     lukittu_kuski_id: int | None = None
     yksin: bool = False
     edellinen_paiva_kuski_id: int | None = None  # reoptimoinnin stabiliteettisakkoa varten
+    henkilo_bufferi_min: int = 0  # henkilökohtainen palveluaika noudossa (spec §8)
 
 
 @dataclass
@@ -66,6 +67,7 @@ class KuskiRow:
     vuoro_aikaisintaan: int | None = None
     vuoro_viimeistaan: int | None = None
     aloitus_aika_min: int | None = None  # reoptimoinnissa: viimeisen lukitun keikan jättöaika
+    pickup_bufferi_min: int = 0  # kuskikohtainen palveluaika noudossa (spec §8)
 
 
 @dataclass
@@ -159,9 +161,28 @@ def ratkaise(
         return kesto
 
     transit_idx = routing.RegisterTransitCallback(transit_cb)
+    # Kustannusevaluaattori pysyy bufferittomana tarkoituksella: bufferi
+    # kuvaa todellista kestoa, ei kuskin "kalleutta" - jos se menisi
+    # kustannukseen, optimoija alkaisi systemaattisesti välttää kuskeja
+    # joilla on realistinen bufferi kirjattuna.
     routing.SetArcCostEvaluatorOfAllVehicles(transit_idx)
 
-    routing.AddDimension(transit_idx, 24 * 60, 30 * 60, False, "Time")
+    def tee_aika_transit_cb(v: int):
+        pickup_bufferi = kuskit[v].pickup_bufferi_min
+
+        def cb(from_i, to_i):
+            kesto = transit_cb(from_i, to_i)
+            to = manager.IndexToNode(to_i)
+            if to < T:
+                kesto += pickup_bufferi + tehtavat[to].henkilo_bufferi_min
+            return kesto
+
+        return cb
+
+    aika_transit_indices = [
+        routing.RegisterTransitCallback(tee_aika_transit_cb(v)) for v in range(n_kuskia)
+    ]
+    routing.AddDimensionWithVehicleTransits(aika_transit_indices, 24 * 60, 30 * 60, False, "Time")
     time_dim = routing.GetDimensionOrDie("Time")
 
     for i, teht in enumerate(tehtavat):

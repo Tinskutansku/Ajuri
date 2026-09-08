@@ -8,6 +8,8 @@ from app.main import app
 from app.models import (
     Ajoneuvo,
     AjolistaVersio,
+    Henkilo,
+    HenkiloTyyppi,
     Keikka,
     Kuski,
     Kuvauspaiva,
@@ -211,3 +213,84 @@ async def test_reoptimointi_toimii_kun_lukitun_keikan_tehtava_on_passivoitu(clie
     lukittu_vastaus = next(kk for kk in kaikki_keikat if kk["nimi"] == "Aamun nouto")
     assert lukittu_vastaus["lukittu"] is True
     assert lukittu_vastaus["nouto_klo"] == "06:30"
+
+
+async def _seed_yksi_tehtava(db_session, *, pickup_bufferi_min=0, henkilo_bufferi_min=0):
+    """Yksi kuski + yksi tehtävä, leveä aikaikkuna (00:00-10:00) ilman
+    oletusarvoisia ikkunanreunoja, jotka söisivät bufferin vaikutuksen
+    (sama tekniikka kuin tests/test_optimoija.py:n bufferitesteissä)."""
+    tuotanto = Tuotanto(nimi="Testituotanto", tuntihinta_eur=20.0)
+    db_session.add(tuotanto)
+    await db_session.flush()
+
+    paiva = Kuvauspaiva(tuotanto_id=tuotanto.id, pvm=date(2026, 7, 10), call_time=time(8, 0))
+    db_session.add(paiva)
+    await db_session.flush()
+
+    kuski = Kuski(
+        tuotanto_id=tuotanto.id, nimi="Kuski A", sopimus=SopimusTyyppi.KUUKAUSI,
+        koti_lat=60.0, koti_lon=24.0, pickup_bufferi_min=pickup_bufferi_min,
+    )
+    db_session.add(kuski)
+    await db_session.flush()
+
+    auto = Ajoneuvo(tuotanto_id=tuotanto.id, nimi="Auto A", mukavuuspaikat=4)
+    db_session.add(auto)
+    await db_session.flush()
+
+    db_session.add(PaivaKuski(paiva_id=paiva.id, kuski_id=kuski.id, ajoneuvo_id=auto.id, tarjolla=True))
+
+    henkilo = Henkilo(
+        tuotanto_id=tuotanto.id, tyyppi=HenkiloTyyppi.CAST, nimi="Näyttelijä",
+        nouto_bufferi_min=henkilo_bufferi_min,
+    )
+    db_session.add(henkilo)
+    await db_session.flush()
+
+    db_session.add(
+        Tehtava(
+            paiva_id=paiva.id, tyyppi=TehtavaTyyppi.HENKILO, nimi="Nouto",
+            henkilo_id=henkilo.id, henkiloita=1,
+            mista_osoite="Hotelli A", mista_lat=60.01, mista_lon=24.0,
+            mihin_osoite="LOC1", mihin_lat=60.02, mihin_lon=24.0,
+            nouto_aikaisintaan=time(0, 0), nouto_viimeistaan=time(10, 0),
+            perilla_aikaisintaan=time(0, 0), perilla_viimeistaan=time(10, 0),
+        )
+    )
+    await db_session.commit()
+    return paiva.id
+
+
+async def test_kuskin_pickup_bufferi_siirtaa_noutoaikaa(client, db_session):
+    """Vaihe C: kuski.pickup_bufferi_min kulkee DB:stä TehtavaRow/KuskiRow:n
+    kautta solverille asti. FakeRouterClient antaa aina 5 min - ilman
+    bufferia nouto on siis 00:05, 20 min bufferilla 00:25."""
+    paiva_id = await _seed_yksi_tehtava(db_session, pickup_bufferi_min=20)
+
+    app.dependency_overrides[get_router_client] = lambda: FakeRouterClient()
+    try:
+        vastaus = await client.post(f"/paivat/{paiva_id}/optimoi", json={"aikaraja_s": 5, "skenaariot": False})
+    finally:
+        del app.dependency_overrides[get_router_client]
+
+    assert vastaus.status_code == 200, vastaus.text
+    data = vastaus.json()
+    kaikki_keikat = [kk for kuski in data["kuskit"] for kk in kuski["keikat"]]
+    assert len(kaikki_keikat) == 1
+    assert kaikki_keikat[0]["nouto_klo"] == "00:25"
+
+
+async def test_henkilon_nouto_bufferi_siirtaa_noutoaikaa(client, db_session):
+    paiva_id = await _seed_yksi_tehtava(db_session, henkilo_bufferi_min=10)
+
+    app.dependency_overrides[get_router_client] = lambda: FakeRouterClient()
+    try:
+        vastaus = await client.post(f"/paivat/{paiva_id}/optimoi", json={"aikaraja_s": 5, "skenaariot": False})
+    finally:
+        del app.dependency_overrides[get_router_client]
+
+    assert vastaus.status_code == 200, vastaus.text
+    data = vastaus.json()
+    kaikki_keikat = [kk for kuski in data["kuskit"] for kk in kuski["keikat"]]
+    assert len(kaikki_keikat) == 1
+    assert kaikki_keikat[0]["nouto_klo"] == "00:15"

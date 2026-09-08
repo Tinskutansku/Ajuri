@@ -97,6 +97,8 @@ class Henkilo(Base):
     lon: Mapped[float | None]
     oletus_oma_auto: Mapped[bool] = mapped_column(default=False)
     oletus_yksin: Mapped[bool] = mapped_column(default=False)      # ei kimppakyytejä
+    nouto_bufferi_min: Mapped[int] = mapped_column(default=0)      # henkilökohtainen palveluaika noudossa
+    max_etuajassa_min: Mapped[int | None]                          # ohittaa globaalin oletuksen (spec §8)
     huomiot: Mapped[str | None] = mapped_column(Text)
 
     tuotanto: Mapped["Tuotanto"] = relationship(back_populates="henkilot")
@@ -113,6 +115,7 @@ class Kuski(Base):
     koti_osoite: Mapped[str | None] = mapped_column(String(300))
     koti_lat: Mapped[float | None]
     koti_lon: Mapped[float | None]
+    pickup_bufferi_min: Mapped[int] = mapped_column(default=0)     # kuskikohtainen palveluaika noudossa
 
     tuotanto: Mapped["Tuotanto"] = relationship(back_populates="kuskit")
 

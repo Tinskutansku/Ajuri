@@ -106,3 +106,20 @@ async def test_kuvauspaiva_ja_paivakohtaiset_rivit(client):
 async def test_kuvauspaiva_404(client):
     vastaus = await client.get("/kuvauspaivat/999")
     assert vastaus.status_code == 404
+
+
+async def test_henkilo_max_etuajassa_min_validoidaan(client):
+    vastaus = await client.post("/tuotannot", json={"nimi": "Testituotanto"})
+    tuotanto_id = vastaus.json()["id"]
+
+    perus = {"tuotanto_id": tuotanto_id, "tyyppi": "cast", "nimi": "Näyttelijä 1"}
+
+    vastaus = await client.post("/henkilot", json={**perus, "max_etuajassa_min": -1})
+    assert vastaus.status_code == 422
+
+    vastaus = await client.post("/henkilot", json={**perus, "max_etuajassa_min": 300})
+    assert vastaus.status_code == 422
+
+    vastaus = await client.post("/henkilot", json={**perus, "max_etuajassa_min": 60})
+    assert vastaus.status_code == 201
+    assert vastaus.json()["max_etuajassa_min"] == 60

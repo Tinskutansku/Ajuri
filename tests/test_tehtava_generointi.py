@@ -58,10 +58,13 @@ async def _seed_perusta(db_session, *, montako_lokaatiota: int = 2):
     return paiva, paiva_lokaatiot
 
 
-async def _seed_henkilo(db_session, tuotanto_id: int, *, oletus_yksin: bool = False) -> Henkilo:
+async def _seed_henkilo(
+    db_session, tuotanto_id: int, *, oletus_yksin: bool = False, max_etuajassa_min: int | None = None,
+) -> Henkilo:
     henkilo = Henkilo(
         tuotanto_id=tuotanto_id, tyyppi=HenkiloTyyppi.CAST, nimi="Näyttelijä 1",
         osoite="Hotelli", lat=60.17, lon=24.94, oletus_yksin=oletus_yksin,
+        max_etuajassa_min=max_etuajassa_min,
     )
     db_session.add(henkilo)
     await db_session.flush()
@@ -364,3 +367,28 @@ async def test_ei_varoitusta_kun_ei_julkaistua_versiota(client, db_session):
     vastaus = await client.post(f"/paivat/{paiva.id}/generoi-tehtavat")
     assert vastaus.status_code == 200
     assert vastaus.json()["varoitus"] is None
+
+
+async def test_max_etuajassa_min_asettaa_perilla_aikaisintaan(client, db_session):
+    paiva, _ = await _seed_perusta(db_session, montako_lokaatiota=1)
+    henkilo = await _seed_henkilo(db_session, paiva.tuotanto_id, max_etuajassa_min=15)
+    db_session.add(PaivaHenkilo(paiva_id=paiva.id, henkilo_id=henkilo.id, oma_auto=False))
+    await db_session.commit()
+
+    vastaus = await client.post(f"/paivat/{paiva.id}/generoi-tehtavat")
+    assert vastaus.status_code == 200
+    nouto = next(r for r in vastaus.json()["tehtavat"] if r["tyyppi"] == "henkilo")
+    assert nouto["perilla_viimeistaan"] == "08:00:00"
+    assert nouto["perilla_aikaisintaan"] == "07:45:00"
+
+
+async def test_max_etuajassa_min_none_ei_aseta_perilla_aikaisintaan(client, db_session):
+    paiva, _ = await _seed_perusta(db_session, montako_lokaatiota=1)
+    henkilo = await _seed_henkilo(db_session, paiva.tuotanto_id)
+    db_session.add(PaivaHenkilo(paiva_id=paiva.id, henkilo_id=henkilo.id, oma_auto=False))
+    await db_session.commit()
+
+    vastaus = await client.post(f"/paivat/{paiva.id}/generoi-tehtavat")
+    assert vastaus.status_code == 200
+    nouto = next(r for r in vastaus.json()["tehtavat"] if r["tyyppi"] == "henkilo")
+    assert nouto["perilla_aikaisintaan"] is None

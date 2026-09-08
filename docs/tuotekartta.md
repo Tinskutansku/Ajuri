@@ -1,8 +1,16 @@
 # AJURI — Tuotekartta
 
-Tilanne: FastAPI-runko + perusdata-CRUD + optimoijaservice (OR-Tools, OSRM,
-matka-välimuisti, reoptimointi, syyanalyysi, skenaariot) valmiina ja testattuna.
-Tämä dokumentti kertoo missä järjestyksessä loput rakennetaan ja miksi.
+Tilanne: FastAPI-runko + perusdata-CRUD + päiväkohtainen CRUD +
+optimoijaservice (OR-Tools, OSRM, matka-välimuisti, reoptimointi,
+syyanalyysi, skenaariot) + tehtävägenerointi + soft delete + versioiden
+värikoodaus + bufferit valmiina ja testattuna (vaiheet A-C). Lisäksi
+`app/seed.py` — idempotentti seed-skripti joka luo realistisen
+demo-kuvauspäivän oikeilla pääkaupunkiseudun koordinaateilla, ainoa tapa
+saada dataa softaan ilman käsityötä — ja `frontend/`-hakemistossa kevyt
+Vite + React -demofrontti optimoijaservicelle (yksi näkymä: valitse päivä,
+optimoi, katso tulos; ei kirjautumista eikä muokkausnäkymiä, ks.
+`frontend/README.md`). Tämä dokumentti kertoo missä järjestyksessä loput
+rakennetaan ja miksi.
 
 ---
 
@@ -18,7 +26,7 @@ datan saa sisään API:sta.
 - Pieni mutta tärkeä: `PATCH /keikat/{id}/kuittaa` (`kuitattu=true`) —
   reoptimoinnin lukituslogiikka tarvitsee tämän ollakseen käyttökelpoinen
 
-## Vaihe B — Tehtävägenerointi
+## Vaihe B — Tehtävägenerointi (valmis)
 
 Vaihe 1 → 2 -logiikka:
 - Nouto ennen callia (oma call tai yleinen) → siirtymä → paluu wrapissa
@@ -62,7 +70,7 @@ minkä listan mukaan mentiin).
 - Blue call sheet → blue ajolista: dokumentit puhuvat samaa kieltä, ja
   "minkä listan mukaan mennään" on yksiselitteinen kysymys
 
-## Vaihe C — V1.1 Bufferit ja henkilökohtaiset aikapreferenssit (spec §8)
+## Vaihe C — V1.1 Bufferit ja henkilökohtaiset aikapreferenssit (spec §8, data+optimoija valmis)
 
 Yksi migraatio, kolme kenttää — kaikki samaa perhettä (henkilö- ja
 kuskikohtaisia aikasäätöjä optimoinnin oletusten päälle):
@@ -73,15 +81,26 @@ kuskikohtaisia aikasäätöjä optimoinnin oletusten päälle):
   myöhässä noudosta)
 - `henkilo.max_etuajassa_min` — kuinka paljon ennen call timea henkilö
   suostuu olemaan perillä; ohittaa globaalin 30 min oletuksen. Generointi
-  laskee tästä `perilla_aikaisintaan`.
+  laskee tästä `perilla_aikaisintaan` (0-240 min validoitu Pydantic-tasolla).
 
-Optimoijamuutos: transit-callback lisää noutosolmun kestoon molemmat bufferit.
-Näkyvyys: henkilökohtaiset kentät vain TUOTANTO/KOORDI (syy voi olla arkaluontoinen)
-— ei tulosteisiin eikä kuskien näkymiin.
+Optimoijamuutos: ajoneuvokohtaiset transit-callbackit (`AddDimensionWithVehicleTransits`)
+lisäävät noutosolmun kestoon molemmat bufferit **vain aikadimensioon, ei
+kaarikustannukseen** — kustannusevaluaattori pysyy bufferittomana, jotta
+optimoija ei systemaattisesti välttäisi kuskia jolla on realistinen bufferi.
+
+**Näkyvyys ei vielä toteutettu**: henkilökohtaisten kenttien piilotus
+KUSKI-roolilta/tulosteista vaatii roolipohjaisen API-suodatuksen, jota ei
+ole missään reitittimessä toistaiseksi (sama mekanismi puuttuu myös
+kustannuskentiltä — ks. vaihe D "Roolinäkyvyys"). Tehdään sitten kun
+roolipohjainen suodatus rakennetaan ylipäätään, ei kohdennetusti tässä.
 
 ## Vaihe D — React-frontti
 
-Käyttöliittymäluonnos toimii speksinä:
+`frontend/`-hakemistossa on jo kevyt Vite + React -demofrontti
+(optimointinäkymä: valitse päivä, optimoi, katso tulos per kuski — ei
+muokkausnäkymiä). Vaihe D laajentaa tämän täydeksi työkaluksi. Aiempi
+käyttöliittymäluonnos (`docs/ajolista_ui_luonnos_v2.jsx`, jota nykyinen
+demofrontti jo osin seuraa tyylillisesti) toimii speksinä laajennukselle:
 - Välilehdet: Rekisteri (+ Excel-tuonti) · Pohjatiedot · Tehtävät · Ajolista
 - Ajolistassa: Suunnittelu (€, aikajanat, skenaariot) + Tulostusversio (ei €)
 - Uutta luonnoksen päälle:
@@ -90,7 +109,11 @@ Käyttöliittymäluonnos toimii speksinä:
   - **Versiodiffi**: uusi versio vs edellinen — mikä muuttui, kenen ajat siirtyivät
     (draft call sheet → final -työnkulun ydin)
   - Sijoittamattomat syineen näkyvästi esiin
-- Roolinäkyvyys: kustannuskentät pois KUSKI-roolilta jo API-tasolla
+- Roolinäkyvyys API-tasolla, KUSKI-roolilta pois:
+  - kustannuskentät
+  - vaihe C:n henkilökohtaiset kentät: `henkilo.nouto_bufferi_min`,
+    `henkilo.max_etuajassa_min`, `kuski.pickup_bufferi_min` — ei
+    tulosteisiin eikä kuskien näkymiin (syy voi olla arkaluontoinen)
 
 ## Vaihe E — Geokoodaus
 
@@ -117,6 +140,12 @@ Käyttöliittymäluonnos toimii speksinä:
 7. Max-paikat hyväksynnällä, shuttle-ikkunat, viikkosaldo optimointirajoitteena,
    asynkroninen optimointi, osastoautot hätävarana
 8. Tuotantoreititin (oma OSRM-instanssi tai ORS-avain) — RouterClient valmiina
+9. **"Julkaistu versio vanhentunut" -tila yleisemmin** — nyt varoitus tulee
+   vain `generoi-tehtavat`-kutsusta (vaihe B), mutta sama pätee kun
+   tehtäviä muokataan käsin tai kuskeja otetaan pois tarjolta julkaisun
+   jälkeen. Aikaleimavertailu (onko päivän data muuttunut version luonnin
+   jälkeen) ratkaisisi tämän kerralla kaikille muutostavoille erillisten
+   kohdennettujen varoitusten sijaan.
 
 ## Pitchi (kun tätä esitellään alan ihmisille)
 

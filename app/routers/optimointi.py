@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db
-from app.models import AjolistaVersio, Keikka, Kuvauspaiva, PaivaKuski, Tehtava, Tuotanto
+from app.models import AjolistaVersio, Henkilo, Keikka, Kuvauspaiva, PaivaKuski, Tehtava, Tuotanto
 from app.schemas import (
     KeikkaVastaus,
     KuskinAjolista,
@@ -108,6 +108,17 @@ async def optimoi_paiva(
             )
     tehtava_by_id = {t.id: t for t in kaikki_tehtavat}
 
+    henkilo_ids = {t.henkilo_id for t in kaikki_tehtavat if t.henkilo_id is not None}
+    henkilo_bufferi_by_id: dict[int, int] = {}
+    if henkilo_ids:
+        henkilo_bufferi_by_id = dict(
+            (
+                await db.execute(
+                    select(Henkilo.id, Henkilo.nouto_bufferi_min).where(Henkilo.id.in_(henkilo_ids))
+                )
+            ).all()
+        )
+
     # --- Reoptimointi: pohjaversio + lukitut keikat ---
     nyt_min = _parse_hhmm(pyynto.nyt) if pyynto.nyt else None
     pohjaversio: AjolistaVersio | None = None
@@ -197,6 +208,7 @@ async def optimoi_paiva(
             vuoro_aikaisintaan=_time_to_min(pk.vuoro_aikaisintaan),
             vuoro_viimeistaan=_time_to_min(pk.vuoro_viimeistaan),
             aloitus_aika_min=kuskin_alkutila.get(pk.id, (None, None))[1],
+            pickup_bufferi_min=pk.kuski.pickup_bufferi_min,
         )
         for pk in kuski_rivit
     ]
@@ -216,6 +228,7 @@ async def optimoi_paiva(
             lukittu_kuski_id=teht.lukittu_kuski_id,
             yksin=teht.yksin,
             edellinen_paiva_kuski_id=edellinen_kuski_map.get(teht.id),
+            henkilo_bufferi_min=henkilo_bufferi_by_id.get(teht.henkilo_id, 0),
         )
         for teht in ratkaistavat_tehtavat
     ]

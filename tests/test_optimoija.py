@@ -146,6 +146,61 @@ def test_lukittu_kuski_ei_tarjolla_paatyy_sijoittamattomiin_lukituskonfliktilla(
     assert syyt[0]["syy"] == "lukituskonflikti"
 
 
+def _kuski_bufferilla(bufferi: int) -> KuskiRow:
+    return KuskiRow(
+        paiva_kuski_id=1, kuski_id=1, nimi="Kuski 1", sopimus=SopimusTyyppi.KUUKAUSI,
+        tuntihinta=20.0, paikkoja=4, aloitus=KOTI, pickup_bufferi_min=bufferi,
+    )
+
+
+def _tehtava_bufferilla(henkilo_bufferi: int = 0) -> TehtavaRow:
+    # nouto_aikaisintaan=0 ja perilla_aikaisintaan=0 asetettu EKSPLISIITTISESTI
+    # (oletusarvot 5*60 / None söisivät bufferin vaikutuksen: solveri
+    # kompensoisi bufferin lähtemällä varhemmin, koska ikkunan alaraja
+    # muuten dominoisi). Näin ASAP-ajoitus on aidosti deterministinen ja
+    # nouto_min heijastaa suoraan pelkän ajoajan + bufferien summan.
+    return TehtavaRow(
+        id=1, nimi="Tehtava A", mista=NOUTOPISTE, mihin=JATTOPISTE,
+        henkiloita=1, nouto_aikaisintaan=0, nouto_viimeistaan=600,
+        perilla_aikaisintaan=0, perilla_viimeistaan=600,
+        henkilo_bufferi_min=henkilo_bufferi,
+    )
+
+
+def test_kuskin_pickup_bufferi_lisaa_noutoaikaan():
+    """Vaihe C: kuskin pickup_bufferi_min lisätään noutosolmun kestoon.
+    KOTI->NOUTOPISTE-ajoaika on 5 min; ilman bufferia nouto ajoittuu siis
+    tasan minuuttiin 5, ja 15 min bufferilla minuuttiin 20."""
+    ilman = ratkaise([_tehtava_bufferilla()], [_kuski_bufferilla(0)], AJOAIKA, OptimointiParametrit(aikaraja_s=5))
+    assert ilman.sijoittamatta == []
+    assert ilman.keikat[0].nouto_min == 5
+
+    bufferilla = ratkaise([_tehtava_bufferilla()], [_kuski_bufferilla(15)], AJOAIKA, OptimointiParametrit(aikaraja_s=5))
+    assert bufferilla.sijoittamatta == []
+    assert bufferilla.keikat[0].nouto_min == 5 + 15
+
+
+def test_henkilon_nouto_bufferi_lisaa_noutoaikaan():
+    kuski = _kuski_bufferilla(0)
+
+    ilman = ratkaise([_tehtava_bufferilla(0)], [kuski], AJOAIKA, OptimointiParametrit(aikaraja_s=5))
+    assert ilman.sijoittamatta == []
+    assert ilman.keikat[0].nouto_min == 5
+
+    bufferilla = ratkaise([_tehtava_bufferilla(10)], [kuski], AJOAIKA, OptimointiParametrit(aikaraja_s=5))
+    assert bufferilla.sijoittamatta == []
+    assert bufferilla.keikat[0].nouto_min == 5 + 10
+
+
+def test_kuskin_ja_henkilon_bufferit_summautuvat():
+    tulos = ratkaise(
+        [_tehtava_bufferilla(henkilo_bufferi=10)], [_kuski_bufferilla(15)],
+        AJOAIKA, OptimointiParametrit(aikaraja_s=5),
+    )
+    assert tulos.sijoittamatta == []
+    assert tulos.keikat[0].nouto_min == 5 + 15 + 10
+
+
 def test_koosta_kuskien_yhteenveto_laskee_kuukausisopimuksen_ilmaiseksi():
     tehtavat = [
         TehtavaRow(
