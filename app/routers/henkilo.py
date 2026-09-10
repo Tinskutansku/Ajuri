@@ -7,6 +7,8 @@ from app.models import Henkilo, KayttajaRooli
 from app.response_filter import HENKILO_KUSKILTA_PIILOTETTAVAT, json_vastaus
 from app.rooli import nykyinen_rooli
 from app.schemas import HenkiloCreate, HenkiloRead
+from app.services.geocoder_client import GeocoderClient, get_geocoder_client
+from app.services.geokoodaus_cache import paivita_koordinaatit_put, taydenna_koordinaatit
 
 router = APIRouter(prefix="/henkilot", tags=["henkilot"])
 
@@ -16,8 +18,10 @@ async def luo_henkilo(
     data: HenkiloCreate,
     db: AsyncSession = Depends(get_db),
     rooli: KayttajaRooli = Depends(nykyinen_rooli),
+    geocoder: GeocoderClient = Depends(get_geocoder_client),
 ):
     henkilo = Henkilo(**data.model_dump())
+    await taydenna_koordinaatit(db, geocoder, henkilo)
     db.add(henkilo)
     await db.commit()
     await db.refresh(henkilo)
@@ -60,12 +64,21 @@ async def paivita_henkilo(
     data: HenkiloCreate,
     db: AsyncSession = Depends(get_db),
     rooli: KayttajaRooli = Depends(nykyinen_rooli),
+    geocoder: GeocoderClient = Depends(get_geocoder_client),
 ):
     henkilo = await db.get(Henkilo, henkilo_id)
     if henkilo is None:
         raise HTTPException(status_code=404, detail="Henkilöä ei löytynyt")
+
+    annetut_kentat = data.model_fields_set
+    edellinen_osoite, edellinen_lat, edellinen_lon = henkilo.osoite, henkilo.lat, henkilo.lon
+
     for kentta, arvo in data.model_dump().items():
         setattr(henkilo, kentta, arvo)
+
+    await paivita_koordinaatit_put(
+        db, geocoder, henkilo, annetut_kentat, edellinen_osoite, edellinen_lat, edellinen_lon,
+    )
     await db.commit()
     await db.refresh(henkilo)
     return json_vastaus(HenkiloRead.model_validate(henkilo), rooli, HENKILO_KUSKILTA_PIILOTETTAVAT)

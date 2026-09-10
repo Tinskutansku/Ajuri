@@ -120,12 +120,28 @@ demofrontti jo osin seuraa tyylillisesti) toimii speksinä laajennukselle:
     laskee UUDEN version joka kutsulla): `GET /versiot?paiva_id=&julkaistu=`,
     `GET /versiot/{id}`, `GET /keikat?versio_id=`
 
-## Vaihe E — Geokoodaus
+## Vaihe E — Geokoodaus (valmis)
 
-- Osoite → lat/lon tallennusvaiheessa (henkilo, lokaatio, kuski)
-- Lähde: esim. Nominatim (ilmainen, riittää) `GeocoderClient`-abstraktion taakse
+- Osoite → lat/lon tallennusvaiheessa (`POST`/`PUT` henkilo, lokaatio,
+  kuski) `GeocoderClient`-abstraktion takana (`app/services/geocoder_client.py`,
+  sama kuvio kuin `RouterClient`), toteutus `NominatimGeocoder` — yksilöivä
+  User-Agent ja 1 kutsu/s -rajoite Nominatimin käyttöehtojen mukaisesti
+  (`nominatim_countrycodes`-asetus oletuksena tyhjä, koska tuotannot voivat
+  olla kansainvälisiä yhteistuotantoja)
 - Poistaa käsin syötettävät koordinaatit — Excel-tuonti muuttuu oikeasti
   käyttökelpoiseksi
+- Välimuisti kantaan (`geokoodi`-taulu, `app/services/geokoodaus_cache.py`):
+  sama osoite (normalisoituna) kysytään ulkoiselta palvelulta vain kerran;
+  epäonnistunutkin haku muistetaan `settings.geokoodaus_negatiivinen_ttl_pv`
+  (oletus 7 vrk) ajaksi, jotta pysyvästi toimimaton osoite ei jää ikuisesti
+  jumiin mutta ei myöskään tuki uudelleenyrityksiä
+- Geokoodauksen epäonnistuminen (verkkovirhe tai "ei löytynyt") ei koskaan
+  estä henkilön/lokaation/kuskin tallennusta — koordinaatit jäävät tyhjiksi,
+  virhe lokiin
+- `POST /tuotannot/{id}/geokoodaa` täydentää kaikki koordinaatittomat rivit
+  kerralla (Excel-tuonnin jälkeen), eräkoolla (`raja`, oletus 15 — Nominatimin
+  1 kutsu/s tarkoittaisi muuten yli minuutin auki olevaa HTTP-pyyntöä) ja
+  `jaljella`-laskurilla ohjaamaan seuraavaa kutsua
 
 ---
 

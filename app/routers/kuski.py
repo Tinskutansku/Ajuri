@@ -7,8 +7,12 @@ from app.models import KayttajaRooli, Kuski
 from app.response_filter import KUSKI_KUSKILTA_PIILOTETTAVAT, json_vastaus
 from app.rooli import nykyinen_rooli
 from app.schemas import KuskiCreate, KuskiRead
+from app.services.geocoder_client import GeocoderClient, get_geocoder_client
+from app.services.geokoodaus_cache import paivita_koordinaatit_put, taydenna_koordinaatit
 
 router = APIRouter(prefix="/kuskit", tags=["kuskit"])
+
+_KOTI_KENTAT = {"osoite_kentta": "koti_osoite", "lat_kentta": "koti_lat", "lon_kentta": "koti_lon"}
 
 
 @router.post("", response_model=KuskiRead, status_code=201)
@@ -16,8 +20,10 @@ async def luo_kuski(
     data: KuskiCreate,
     db: AsyncSession = Depends(get_db),
     rooli: KayttajaRooli = Depends(nykyinen_rooli),
+    geocoder: GeocoderClient = Depends(get_geocoder_client),
 ):
     kuski = Kuski(**data.model_dump())
+    await taydenna_koordinaatit(db, geocoder, kuski, **_KOTI_KENTAT)
     db.add(kuski)
     await db.commit()
     await db.refresh(kuski)
@@ -60,12 +66,22 @@ async def paivita_kuski(
     data: KuskiCreate,
     db: AsyncSession = Depends(get_db),
     rooli: KayttajaRooli = Depends(nykyinen_rooli),
+    geocoder: GeocoderClient = Depends(get_geocoder_client),
 ):
     kuski = await db.get(Kuski, kuski_id)
     if kuski is None:
         raise HTTPException(status_code=404, detail="Kuskia ei löytynyt")
+
+    annetut_kentat = data.model_fields_set
+    edellinen_osoite, edellinen_lat, edellinen_lon = kuski.koti_osoite, kuski.koti_lat, kuski.koti_lon
+
     for kentta, arvo in data.model_dump().items():
         setattr(kuski, kentta, arvo)
+
+    await paivita_koordinaatit_put(
+        db, geocoder, kuski, annetut_kentat, edellinen_osoite, edellinen_lat, edellinen_lon,
+        **_KOTI_KENTAT,
+    )
     await db.commit()
     await db.refresh(kuski)
     return json_vastaus(KuskiRead.model_validate(kuski), rooli, KUSKI_KUSKILTA_PIILOTETTAVAT)

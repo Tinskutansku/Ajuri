@@ -318,3 +318,15 @@ class Matka(Base):
     __table_args__ = (
         UniqueConstraint("mista_lat", "mista_lon", "mihin_lat", "mihin_lon"),
     )
+
+
+class Geokoodi(Base):
+    """Osoitteiden geokoodausvälimuisti: sama osoite kysytään ulkoiselta
+    geokooderilta vain kerran, myös epäonnistunut haku muistetaan."""
+    __tablename__ = "geokoodi"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    osoite: Mapped[str] = mapped_column(String(300), unique=True)
+    lat: Mapped[float | None]
+    lon: Mapped[float | None]
+    haettu: Mapped[datetime] = mapped_column(server_default=func.now())
+    lahde: Mapped[str] = mapped_column(String(50))

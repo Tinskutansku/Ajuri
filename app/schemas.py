@@ -376,3 +376,18 @@ class OptimointiVastaus(BaseModel):
     kuskit: list[KuskinAjolista]
     sijoittamatta: list[Sijoittamaton]
     skenaariot: list[Skenaario] | None = None
+
+
+# ---------------------------------------------------------------------------
+# Geokoodaus (docs/tuotekartta.md, vaihe E)
+# ---------------------------------------------------------------------------
+
+
+class GeokoodausTulos(BaseModel):
+    henkilot_paivitetty: int
+    henkilot_epaonnistui: int
+    kuskit_paivitetty: int
+    kuskit_epaonnistui: int
+    lokaatiot_paivitetty: int
+    lokaatiot_epaonnistui: int
+    jaljella: int  # koordinaatittomia rivejä joita EI yritetty tässä kutsussa
