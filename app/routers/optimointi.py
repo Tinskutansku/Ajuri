@@ -12,7 +12,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db
-from app.models import AjolistaVersio, Henkilo, Keikka, Kuvauspaiva, PaivaKuski, Tehtava, Tuotanto
+from app.models import AjolistaVersio, Henkilo, KayttajaRooli, Keikka, Kuvauspaiva, PaivaKuski, Tehtava, Tuotanto
+from app.response_filter import OPTIMOINTIVASTAUS_KUSKILTA_PIILOTETTAVAT, json_vastaus
+from app.rooli import nykyinen_rooli
 from app.schemas import (
     KeikkaVastaus,
     KuskinAjolista,
@@ -62,6 +64,7 @@ async def optimoi_paiva(
     pyynto: OptimointiPyynto,
     db: AsyncSession = Depends(get_db),
     router_client: RouterClient = Depends(get_router_client),
+    rooli: KayttajaRooli = Depends(nykyinen_rooli),
 ):
     paiva = await db.get(Kuvauspaiva, paiva_id)
     if paiva is None:
@@ -350,7 +353,7 @@ async def optimoi_paiva(
         [Skenaario(**s) for s in skenaariot_data] if skenaariot_data is not None else None
     )
 
-    return OptimointiVastaus(
+    vastaus = OptimointiVastaus(
         versio_id=uusi_versio.id,
         versio_nro=uusi_versio.versio_nro,
         kokonaiskustannus_eur=uusi_versio.kokonaiskustannus_eur,
@@ -358,3 +361,4 @@ async def optimoi_paiva(
         sijoittamatta=sijoittamatta_vastaus,
         skenaariot=skenaariot_vastaus,
     )
+    return json_vastaus(vastaus, rooli, OPTIMOINTIVASTAUS_KUSKILTA_PIILOTETTAVAT)

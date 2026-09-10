@@ -88,11 +88,8 @@ lisäävät noutosolmun kestoon molemmat bufferit **vain aikadimensioon, ei
 kaarikustannukseen** — kustannusevaluaattori pysyy bufferittomana, jotta
 optimoija ei systemaattisesti välttäisi kuskia jolla on realistinen bufferi.
 
-**Näkyvyys ei vielä toteutettu**: henkilökohtaisten kenttien piilotus
-KUSKI-roolilta/tulosteista vaatii roolipohjaisen API-suodatuksen, jota ei
-ole missään reitittimessä toistaiseksi (sama mekanismi puuttuu myös
-kustannuskentiltä — ks. vaihe D "Roolinäkyvyys"). Tehdään sitten kun
-roolipohjainen suodatus rakennetaan ylipäätään, ei kohdennetusti tässä.
+**Näkyvyys toteutettu vaiheessa D** ("Roolinäkyvyys") roolipohjaisella
+API-suodatuksella, samalla mekanismilla kuin kustannuskentät.
 
 ## Vaihe D — React-frontti
 
@@ -109,11 +106,19 @@ demofrontti jo osin seuraa tyylillisesti) toimii speksinä laajennukselle:
   - **Versiodiffi**: uusi versio vs edellinen — mikä muuttui, kenen ajat siirtyivät
     (draft call sheet → final -työnkulun ydin)
   - Sijoittamattomat syineen näkyvästi esiin
-- Roolinäkyvyys API-tasolla, KUSKI-roolilta pois:
-  - kustannuskentät
+- **Roolinäkyvyys API-tasolla (valmis)**: `app/rooli.py` (roolin lähde,
+  toistaiseksi `X-Rooli`-header, oletus TUOTANTO — EI turvaominaisuus,
+  ks. README) + `app/response_filter.py` (kenttäsuodatus). KUSKI-roolilta
+  pois kaikista vastauksista (kenttä puuttuu kokonaan, ei vain `null`):
+  - kustannuskentät: `ajolista_versio.kokonaiskustannus_eur`,
+    kuskikohtainen `lisakustannus_eur`, koko skenaariovertailu
   - vaihe C:n henkilökohtaiset kentät: `henkilo.nouto_bufferi_min`,
-    `henkilo.max_etuajassa_min`, `kuski.pickup_bufferi_min` — ei
-    tulosteisiin eikä kuskien näkymiin (syy voi olla arkaluontoinen)
+    `henkilo.max_etuajassa_min`, `kuski.pickup_bufferi_min`,
+    `kuski.tuntihinta_eur`
+  - Samalla lisätty puuttuneet luku-endpointit joita kuskin ajolistanäkymä
+    tarvitsee (niitä ei ollut ollenkaan aiemmin — vain `/optimoi`, joka
+    laskee UUDEN version joka kutsulla): `GET /versiot?paiva_id=&julkaistu=`,
+    `GET /versiot/{id}`, `GET /keikat?versio_id=`
 
 ## Vaihe E — Geokoodaus
 

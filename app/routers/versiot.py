@@ -3,7 +3,9 @@ from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models import AjolistaVersio
+from app.models import AjolistaVersio, KayttajaRooli
+from app.response_filter import AJOLISTAVERSIO_KUSKILTA_PIILOTETTAVAT, json_vastaus
+from app.rooli import nykyinen_rooli
 from app.schemas import AjolistaVersioRead
 
 router = APIRouter(prefix="/versiot", tags=["versiot"])
@@ -20,7 +22,11 @@ def _seuraava_tunniste(kaytetyt_lkm: int) -> str:
 
 
 @router.post("/{versio_id}/julkaise", response_model=AjolistaVersioRead)
-async def julkaise_versio(versio_id: int, db: AsyncSession = Depends(get_db)):
+async def julkaise_versio(
+    versio_id: int,
+    db: AsyncSession = Depends(get_db),
+    rooli: KayttajaRooli = Depends(nykyinen_rooli),
+):
     versio = await db.get(AjolistaVersio, versio_id)
     if versio is None:
         raise HTTPException(status_code=404, detail="Versiota ei löytynyt")
@@ -47,4 +53,38 @@ async def julkaise_versio(versio_id: int, db: AsyncSession = Depends(get_db)):
 
     await db.commit()
     await db.refresh(versio)
-    return versio
+    return json_vastaus(
+        AjolistaVersioRead.model_validate(versio), rooli, AJOLISTAVERSIO_KUSKILTA_PIILOTETTAVAT
+    )
+
+
+@router.get("", response_model=list[AjolistaVersioRead])
+async def listaa_versiot(
+    paiva_id: int | None = None,
+    julkaistu: bool | None = None,
+    db: AsyncSession = Depends(get_db),
+    rooli: KayttajaRooli = Depends(nykyinen_rooli),
+):
+    stmt = select(AjolistaVersio).order_by(AjolistaVersio.versio_nro)
+    if paiva_id is not None:
+        stmt = stmt.where(AjolistaVersio.paiva_id == paiva_id)
+    if julkaistu is not None:
+        stmt = stmt.where(AjolistaVersio.julkaistu.is_(julkaistu))
+    tulos = (await db.execute(stmt)).scalars().all()
+    return json_vastaus(
+        [AjolistaVersioRead.model_validate(v) for v in tulos], rooli, AJOLISTAVERSIO_KUSKILTA_PIILOTETTAVAT
+    )
+
+
+@router.get("/{versio_id}", response_model=AjolistaVersioRead)
+async def hae_versio(
+    versio_id: int,
+    db: AsyncSession = Depends(get_db),
+    rooli: KayttajaRooli = Depends(nykyinen_rooli),
+):
+    versio = await db.get(AjolistaVersio, versio_id)
+    if versio is None:
+        raise HTTPException(status_code=404, detail="Versiota ei löytynyt")
+    return json_vastaus(
+        AjolistaVersioRead.model_validate(versio), rooli, AJOLISTAVERSIO_KUSKILTA_PIILOTETTAVAT
+    )

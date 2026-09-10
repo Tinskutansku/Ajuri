@@ -161,6 +161,40 @@ pytest
   version julkaisu ja keikan kuittaus (8)
 - savutesti perusdatan CRUD-ketjulle (1)
 
+## Roolit ja X-Rooli-header
+
+API:ssa on kolme roolia (`KayttajaRooli`-enum): TUOTANTO, KOORDI ja KUSKI.
+TUOTANTO ja KOORDI näkevät kaiken. KUSKI-roolilta piilotetaan
+vastauksista kustannuskentät (`ajolista_versio.kokonaiskustannus_eur`,
+kuskikohtainen `lisakustannus_eur`, koko skenaariovertailu) sekä
+henkilö-/kuskikohtaiset bufferi- ja aikapreferenssikentät
+(`henkilo.nouto_bufferi_min`, `henkilo.max_etuajassa_min`,
+`kuski.pickup_bufferi_min`, `kuski.tuntihinta_eur`) — nämä eivät katoa
+vain `null`:iksi, vaan puuttuvat JSON-vastauksesta kokonaan.
+
+Rooli luetaan toistaiseksi `X-Rooli`-headerista (`app/rooli.py`),
+oletuksena TUOTANTO jos header puuttuu tai sen arvo on tuntematon:
+
+```
+curl -H "X-Rooli: kuski" http://localhost:8000/henkilot
+```
+
+**Tämä ei ole turvaominaisuus.** `X-Rooli` on asiakkaan itsensä
+asettama header — kuka tahansa voi pyytää TUOTANTO-näkymän vaihtamalla
+headerin arvon. Se on väliaikainen UI:n karsintamekanismi ennen
+autentikointia (ks. [docs/tuotekartta.md](docs/tuotekartta.md) V2 #5:
+"Käyttäjähallinta + autentikointi"). Kun JWT-pohjainen autentikointi
+rakennetaan, vain `app/rooli.py`:n `nykyinen_rooli`-funktion sisältö
+vaihtuu (header → JWT-claim) — itse kenttäsuodatus (`app/response_filter.py`)
+ja kaikki sitä käyttävät reitittimet pysyvät koskemattomina.
+
+Myös huomio: **Swagger-dokumentaatio (`/docs`) näyttää aina kaikki
+kentät roolista riippumatta** — endpointtien `response_model` on jätetty
+paikoilleen dokumentaatiota varten, mutta ajonaikainen suodatus tapahtuu
+sen ohi (`JSONResponse` palautetaan suoraan). Swaggerin "Try it out"
+-kutsu näyttää silti oikean, suodatetun JSON-vastauksen — vain skeeman
+kuvaus (mitä kenttiä VOISI olla) on aina täysi.
+
 ## Tilanne ja jatkokehitys
 
 Valmiina: perusdatan ja päiväkohtaisen datan CRUD, optimointiservice
