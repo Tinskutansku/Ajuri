@@ -382,6 +382,50 @@ async def test_max_etuajassa_min_asettaa_perilla_aikaisintaan(client, db_session
     assert nouto["perilla_aikaisintaan"] == "07:45:00"
 
 
+async def test_passivoitu_henkilo_ei_saa_tehtavia(client, db_session):
+    """Vaihe F: soft-deletetty (aktiivinen=False) henkilö ei mene mukaan
+    generointiin, vaikka paiva_henkilo-rivi vielä viittaisi häneen."""
+    paiva, _ = await _seed_perusta(db_session, montako_lokaatiota=1)
+    aktiivinen = await _seed_henkilo(db_session, paiva.tuotanto_id)
+    passiivinen = Henkilo(
+        tuotanto_id=paiva.tuotanto_id, tyyppi=HenkiloTyyppi.CAST, nimi="Passivoitu näyttelijä",
+        osoite="Hotelli B", lat=60.18, lon=24.95, aktiivinen=False,
+    )
+    db_session.add(passiivinen)
+    await db_session.flush()
+    db_session.add(PaivaHenkilo(paiva_id=paiva.id, henkilo_id=aktiivinen.id, oma_auto=False))
+    db_session.add(PaivaHenkilo(paiva_id=paiva.id, henkilo_id=passiivinen.id, oma_auto=False))
+    await db_session.commit()
+
+    vastaus = await client.post(f"/paivat/{paiva.id}/generoi-tehtavat")
+    assert vastaus.status_code == 200
+    nimet = {r["nimi"] for r in vastaus.json()["tehtavat"]}
+    assert not any("Passivoitu" in nimi for nimi in nimet)
+    assert any("Näyttelijä 1" in nimi for nimi in nimet)
+
+
+async def test_passivoitu_lokaatio_ohitetaan_reitilta(client, db_session):
+    """Vaihe F: soft-deletetty lokaatio ei mene mukaan generointiin, vaikka
+    paiva_lokaatio-rivi vielä viittaisi siihen - reitti rakentuu jäljelle
+    jäävistä aktiivisista lokaatioista."""
+    paiva, lokaatiot = await _seed_perusta(db_session, montako_lokaatiota=2)
+    lokaatiot[1].lokaatio.aktiivinen = False
+    henkilo = await _seed_henkilo(db_session, paiva.tuotanto_id)
+    db_session.add(PaivaHenkilo(paiva_id=paiva.id, henkilo_id=henkilo.id, oma_auto=False, siirtyy=True))
+    await db_session.commit()
+
+    vastaus = await client.post(f"/paivat/{paiva.id}/generoi-tehtavat")
+    assert vastaus.status_code == 200
+    rivit = vastaus.json()["tehtavat"]
+    tyypit = {r["tyyppi"] for r in rivit}
+    # Vain yksi aktiivinen lokaatio jäljellä -> ei siirtymää tarvita.
+    assert "siirtyma" not in tyypit
+    nouto = next(r for r in rivit if r["tyyppi"] == "henkilo")
+    assert nouto["mihin_osoite"] == "Osoite 1"
+    paluu = next(r for r in rivit if r["tyyppi"] == "paluu")
+    assert paluu["mista_osoite"] == "Osoite 1"
+
+
 async def test_max_etuajassa_min_none_ei_aseta_perilla_aikaisintaan(client, db_session):
     paiva, _ = await _seed_perusta(db_session, montako_lokaatiota=1)
     henkilo = await _seed_henkilo(db_session, paiva.tuotanto_id)

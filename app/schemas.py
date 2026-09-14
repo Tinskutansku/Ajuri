@@ -51,6 +51,7 @@ class HenkiloBase(BaseModel):
     nouto_bufferi_min: int = 0
     max_etuajassa_min: int | None = Field(default=None, ge=0, le=240)
     huomiot: str | None = None
+    aktiivinen: bool = True
 
 
 class HenkiloCreate(HenkiloBase):
@@ -78,6 +79,7 @@ class KuskiBase(BaseModel):
     koti_lat: float | None = None
     koti_lon: float | None = None
     pickup_bufferi_min: int = 0
+    aktiivinen: bool = True
 
 
 class KuskiCreate(KuskiBase):
@@ -129,6 +131,7 @@ class LokaatioBase(BaseModel):
     lat: float | None = None
     lon: float | None = None
     ajo_ohjeet: str | None = None
+    aktiivinen: bool = True
 
 
 class LokaatioCreate(LokaatioBase):
@@ -140,6 +143,15 @@ class LokaatioRead(LokaatioBase):
 
     id: int
     tuotanto_id: int
+
+
+class KayttoPaiva(BaseModel):
+    """Vastaus GET /{resurssi}/{id}/kaytto: missä kuvauspäivissä
+    henkilö/kuski/lokaatio on mukana (docs/tuotekartta.md, vaihe F)."""
+
+    paiva_id: int
+    pvm: date
+    paiva_nro: str | None
 
 
 # ---------------------------------------------------------------------------

@@ -12,7 +12,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db
-from app.models import AjolistaVersio, Henkilo, KayttajaRooli, Keikka, Kuvauspaiva, PaivaKuski, Tehtava, Tuotanto
+from app.models import (
+    AjolistaVersio,
+    Henkilo,
+    KayttajaRooli,
+    Keikka,
+    Kuski,
+    Kuvauspaiva,
+    PaivaKuski,
+    Tehtava,
+    Tuotanto,
+)
 from app.response_filter import OPTIMOINTIVASTAUS_KUSKILTA_PIILOTETTAVAT, json_vastaus
 from app.rooli import nykyinen_rooli
 from app.schemas import (
@@ -75,7 +85,12 @@ async def optimoi_paiva(
         (
             await db.execute(
                 select(PaivaKuski)
-                .where(PaivaKuski.paiva_id == paiva_id, PaivaKuski.tarjolla.is_(True))
+                .join(Kuski, PaivaKuski.kuski_id == Kuski.id)
+                .where(
+                    PaivaKuski.paiva_id == paiva_id,
+                    PaivaKuski.tarjolla.is_(True),
+                    Kuski.aktiivinen.is_(True),
+                )
                 .options(selectinload(PaivaKuski.kuski), selectinload(PaivaKuski.ajoneuvo))
             )
         )
@@ -179,6 +194,30 @@ async def optimoi_paiva(
         )
         tehtava_by_id.update({t.id: t for t in lisatehtavat})
 
+    # Sama ongelma toistuu kuskeille: lukitun keikan kuski on saatettu
+    # passivoida (soft delete) sen jälkeen kun keikka kuitattiin - se ei
+    # silloin ole enää kuski_rivit-listalla (Kuski.aktiivinen suodattaa sen
+    # pois), vaikka sitä yhä tarvitaan lukitun keikan näyttämiseen.
+    # Täydennä puuttuvat paiva_kuski-rivit vain näyttöä varten - niitä ei
+    # koskaan anneta ratkaisijalle, joten ne eivät voi saada uusia tehtäviä.
+    paiva_kuski_id_by_rivi = {pk.id for pk in kuski_rivit}
+    puuttuvat_paiva_kuski_id = {
+        kk.paiva_kuski_id for kk in lukitut_map.values()
+    } - paiva_kuski_id_by_rivi
+    kuski_rivit_taydennykset: list[PaivaKuski] = []
+    if puuttuvat_paiva_kuski_id:
+        kuski_rivit_taydennykset = (
+            (
+                await db.execute(
+                    select(PaivaKuski)
+                    .where(PaivaKuski.id.in_(puuttuvat_paiva_kuski_id))
+                    .options(selectinload(PaivaKuski.kuski), selectinload(PaivaKuski.ajoneuvo))
+                )
+            )
+            .scalars()
+            .all()
+        )
+
     # kuskin lähtötila: viimeisen lukitun keikan jättöpaikka/-aika, jos on
     kuskin_alkutila: dict[int, tuple[tuple[float, float], int]] = {}
     for kk in lukitut_map.values():
@@ -215,6 +254,28 @@ async def optimoi_paiva(
         )
         for pk in kuski_rivit
     ]
+
+    # Täydennykset (passivoidun kuskin lukittu keikka) näyttöä varten -
+    # placeholder-arvot paikkoja/aloitus-kentissä, koska näitä ei koskaan
+    # anneta ratkaise()/vertaile_skenaarioita()-funktioille.
+    kuskit_taydennykset = [
+        KuskiRow(
+            paiva_kuski_id=pk.id,
+            kuski_id=pk.kuski_id,
+            nimi=pk.kuski.nimi,
+            sopimus=pk.kuski.sopimus,
+            tuntihinta=(
+                pk.kuski.tuntihinta_eur
+                if pk.kuski.tuntihinta_eur is not None
+                else tuotanto.tuntihinta_eur
+            ),
+            paikkoja=pk.ajoneuvo.mukavuuspaikat if pk.ajoneuvo is not None else 0,
+            aloitus=(0.0, 0.0),
+            pickup_bufferi_min=pk.kuski.pickup_bufferi_min,
+        )
+        for pk in kuski_rivit_taydennykset
+    ]
+    kuskit_kaikki = kuskit + kuskit_taydennykset
 
     # --- Rakenna tehtävät (lukitsemattomat) ---
     tehtavat = [
@@ -270,8 +331,8 @@ async def optimoi_paiva(
         )
         persistoinnin_lisatiedot[kk.tehtava_id] = (kk.kasin_siirretty, kk.kuitattu)
 
-    yhteenveto = koosta_kuskien_yhteenveto(yhdistetyt, kuskit)
-    kuski_by_id = {k.paiva_kuski_id: k for k in kuskit}
+    yhteenveto = koosta_kuskien_yhteenveto(yhdistetyt, kuskit_kaikki)
+    kuski_by_id = {k.paiva_kuski_id: k for k in kuskit_kaikki}
 
     # --- Tallenna uusi versio ---
     edellinen_versio_nro = (

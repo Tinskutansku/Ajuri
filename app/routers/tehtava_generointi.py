@@ -22,7 +22,9 @@ from sqlalchemy.orm import selectinload
 from app.database import get_db
 from app.models import (
     AjolistaVersio,
+    Henkilo,
     Kuvauspaiva,
+    Lokaatio,
     PaivaHenkilo,
     PaivaLokaatio,
     Tehtava,
@@ -57,7 +59,8 @@ async def generoi_tehtavat(paiva_id: int, db: AsyncSession = Depends(get_db)):
         (
             await db.execute(
                 select(PaivaLokaatio)
-                .where(PaivaLokaatio.paiva_id == paiva_id)
+                .join(Lokaatio, PaivaLokaatio.lokaatio_id == Lokaatio.id)
+                .where(PaivaLokaatio.paiva_id == paiva_id, Lokaatio.aktiivinen.is_(True))
                 .options(selectinload(PaivaLokaatio.lokaatio))
                 .order_by(PaivaLokaatio.jarjestys)
             )
@@ -74,7 +77,8 @@ async def generoi_tehtavat(paiva_id: int, db: AsyncSession = Depends(get_db)):
         (
             await db.execute(
                 select(PaivaHenkilo)
-                .where(PaivaHenkilo.paiva_id == paiva_id)
+                .join(Henkilo, PaivaHenkilo.henkilo_id == Henkilo.id)
+                .where(PaivaHenkilo.paiva_id == paiva_id, Henkilo.aktiivinen.is_(True))
                 .options(selectinload(PaivaHenkilo.henkilo))
             )
         )

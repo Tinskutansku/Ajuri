@@ -215,6 +215,110 @@ async def test_reoptimointi_toimii_kun_lukitun_keikan_tehtava_on_passivoitu(clie
     assert lukittu_vastaus["nouto_klo"] == "06:30"
 
 
+async def test_reoptimointi_toimii_kun_lukitun_keikan_kuski_on_passivoitu(client, db_session):
+    """Vaihe F: jos kuski passivoidaan (soft delete) sen jälkeen kun hänen
+    keikkansa kuitattiin, reoptimoinnin pitää silti näyttää lukittu keikka
+    oikein (ei KeyErroria), eikä passivoitu kuski saa olla ehdolla uusille
+    tehtäville."""
+    tuotanto = Tuotanto(nimi="Testituotanto", tuntihinta_eur=20.0)
+    db_session.add(tuotanto)
+    await db_session.flush()
+
+    paiva = Kuvauspaiva(tuotanto_id=tuotanto.id, pvm=date(2026, 7, 10), call_time=time(8, 0))
+    db_session.add(paiva)
+    await db_session.flush()
+
+    kuski = Kuski(
+        tuotanto_id=tuotanto.id, nimi="Kuski A", sopimus=SopimusTyyppi.KUUKAUSI,
+        koti_lat=60.0, koti_lon=24.0,
+    )
+    db_session.add(kuski)
+    await db_session.flush()
+
+    auto = Ajoneuvo(tuotanto_id=tuotanto.id, nimi="Auto A", mukavuuspaikat=4)
+    db_session.add(auto)
+    await db_session.flush()
+
+    paiva_kuski = PaivaKuski(paiva_id=paiva.id, kuski_id=kuski.id, ajoneuvo_id=auto.id, tarjolla=True)
+    db_session.add(paiva_kuski)
+    await db_session.flush()
+
+    lukittu_tehtava = Tehtava(
+        paiva_id=paiva.id, tyyppi=TehtavaTyyppi.HENKILO, nimi="Aamun nouto",
+        henkiloita=1, mista_osoite="Hotelli A", mista_lat=60.01, mista_lon=24.0,
+        mihin_osoite="LOC1", mihin_lat=60.02, mihin_lon=24.0,
+        perilla_viimeistaan=time(8, 0),
+    )
+    db_session.add(lukittu_tehtava)
+    await db_session.flush()
+
+    versio = AjolistaVersio(paiva_id=paiva.id, versio_nro=1, julkaistu=True)
+    db_session.add(versio)
+    await db_session.flush()
+    keikka = Keikka(
+        versio_id=versio.id, tehtava_id=lukittu_tehtava.id, paiva_kuski_id=paiva_kuski.id,
+        nouto_klo=time(6, 30), jatto_klo=time(6, 50), jarjestys=1, kuitattu=True,
+    )
+    db_session.add(keikka)
+    await db_session.commit()
+
+    # Simuloidaan että kuski poistettiin (soft delete) sen jälkeen kun
+    # keikka kuitattiin. Toinen, aktiivinen kuski jää tarjolle uusille
+    # tehtäville.
+    kuski.aktiivinen = False
+    toinen_kuski = Kuski(
+        tuotanto_id=tuotanto.id, nimi="Kuski B", sopimus=SopimusTyyppi.KUUKAUSI,
+        koti_lat=60.0, koti_lon=24.1,
+    )
+    db_session.add(toinen_kuski)
+    await db_session.flush()
+    toinen_auto = Ajoneuvo(tuotanto_id=tuotanto.id, nimi="Auto B", mukavuuspaikat=4)
+    db_session.add(toinen_auto)
+    await db_session.flush()
+    db_session.add(
+        PaivaKuski(paiva_id=paiva.id, kuski_id=toinen_kuski.id, ajoneuvo_id=toinen_auto.id, tarjolla=True)
+    )
+    uusi_tehtava = Tehtava(
+        paiva_id=paiva.id, tyyppi=TehtavaTyyppi.HENKILO, nimi="Iltapäivän nouto",
+        henkiloita=1, mista_osoite="Hotelli B", mista_lat=60.03, mista_lon=24.0,
+        mihin_osoite="LOC1", mihin_lat=60.02, mihin_lon=24.0,
+        perilla_viimeistaan=time(14, 0),
+    )
+    db_session.add(uusi_tehtava)
+    await db_session.commit()
+
+    app.dependency_overrides[get_router_client] = lambda: FakeRouterClient()
+    try:
+        vastaus = await client.post(
+            f"/paivat/{paiva.id}/optimoi",
+            json={"aikaraja_s": 5, "skenaariot": False, "nyt": "10:00", "pohjaversio_id": versio.id},
+        )
+    finally:
+        del app.dependency_overrides[get_router_client]
+
+    assert vastaus.status_code == 200, vastaus.text
+    data = vastaus.json()
+    kaikki_keikat = [kk for kuski_ajolista in data["kuskit"] for kk in kuski_ajolista["keikat"]]
+    nimet = {kk["nimi"] for kk in kaikki_keikat}
+    assert nimet == {"Aamun nouto", "Iltapäivän nouto"}
+
+    lukittu_vastaus = next(kk for kk in kaikki_keikat if kk["nimi"] == "Aamun nouto")
+    assert lukittu_vastaus["lukittu"] is True
+    assert lukittu_vastaus["nouto_klo"] == "06:30"
+
+    # Passivoidun kuskin nimi näkyy silti lukitun keikan ajolistassa.
+    passivoidun_ajolista = next(
+        k for k in data["kuskit"] if any(kk["nimi"] == "Aamun nouto" for kk in k["keikat"])
+    )
+    assert passivoidun_ajolista["nimi"] == "Kuski A"
+
+    # Uusi tehtävä menee aktiiviselle kuskille, ei passivoidulle.
+    uuden_ajolista = next(
+        k for k in data["kuskit"] if any(kk["nimi"] == "Iltapäivän nouto" for kk in k["keikat"])
+    )
+    assert uuden_ajolista["nimi"] == "Kuski B"
+
+
 async def _seed_yksi_tehtava(db_session, *, pickup_bufferi_min=0, henkilo_bufferi_min=0):
     """Yksi kuski + yksi tehtävä, leveä aikaikkuna (00:00-10:00) ilman
     oletusarvoisia ikkunanreunoja, jotka söisivät bufferin vaikutuksen

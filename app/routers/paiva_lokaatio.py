@@ -3,14 +3,21 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models import PaivaLokaatio
+from app.models import Lokaatio, PaivaLokaatio
 from app.schemas import PaivaLokaatioCreate, PaivaLokaatioRead
 
 router = APIRouter(prefix="/paiva-lokaatiot", tags=["paiva-lokaatiot"])
 
 
+async def _tarkista_lokaatio_aktiivinen(db: AsyncSession, lokaatio_id: int) -> None:
+    lokaatio = await db.get(Lokaatio, lokaatio_id)
+    if lokaatio is not None and not lokaatio.aktiivinen:
+        raise HTTPException(status_code=422, detail="Poistettua lokaatiota ei voi liittää kuvauspäivään")
+
+
 @router.post("", response_model=PaivaLokaatioRead, status_code=201)
 async def luo_paiva_lokaatio(data: PaivaLokaatioCreate, db: AsyncSession = Depends(get_db)):
+    await _tarkista_lokaatio_aktiivinen(db, data.lokaatio_id)
     rivi = PaivaLokaatio(**data.model_dump())
     db.add(rivi)
     await db.commit()
@@ -44,6 +51,7 @@ async def paivita_paiva_lokaatio(
     rivi = await db.get(PaivaLokaatio, rivi_id)
     if rivi is None:
         raise HTTPException(status_code=404, detail="Päivän lokaatiota ei löytynyt")
+    await _tarkista_lokaatio_aktiivinen(db, data.lokaatio_id)
     for kentta, arvo in data.model_dump().items():
         setattr(rivi, kentta, arvo)
     await db.commit()

@@ -3,10 +3,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models import Henkilo, KayttajaRooli
+from app.models import Henkilo, KayttajaRooli, Kuvauspaiva, PaivaHenkilo
 from app.response_filter import HENKILO_KUSKILTA_PIILOTETTAVAT, json_vastaus
 from app.rooli import nykyinen_rooli
-from app.schemas import HenkiloCreate, HenkiloRead
+from app.schemas import HenkiloCreate, HenkiloRead, KayttoPaiva
 from app.services.geocoder_client import GeocoderClient, get_geocoder_client
 from app.services.geokoodaus_cache import paivita_koordinaatit_put, taydenna_koordinaatit
 
@@ -33,12 +33,15 @@ async def luo_henkilo(
 @router.get("", response_model=list[HenkiloRead])
 async def listaa_henkilot(
     tuotanto_id: int | None = None,
+    sisalla_passiiviset: bool = False,
     db: AsyncSession = Depends(get_db),
     rooli: KayttajaRooli = Depends(nykyinen_rooli),
 ):
     stmt = select(Henkilo).order_by(Henkilo.id)
     if tuotanto_id is not None:
         stmt = stmt.where(Henkilo.tuotanto_id == tuotanto_id)
+    if not sisalla_passiiviset:
+        stmt = stmt.where(Henkilo.aktiivinen.is_(True))
     result = await db.execute(stmt)
     henkilot = result.scalars().all()
     return json_vastaus(
@@ -49,13 +52,29 @@ async def listaa_henkilot(
 @router.get("/{henkilo_id}", response_model=HenkiloRead)
 async def hae_henkilo(
     henkilo_id: int,
+    sisalla_passiiviset: bool = False,
     db: AsyncSession = Depends(get_db),
     rooli: KayttajaRooli = Depends(nykyinen_rooli),
 ):
     henkilo = await db.get(Henkilo, henkilo_id)
-    if henkilo is None:
+    if henkilo is None or (not sisalla_passiiviset and not henkilo.aktiivinen):
         raise HTTPException(status_code=404, detail="Henkilöä ei löytynyt")
     return json_vastaus(HenkiloRead.model_validate(henkilo), rooli, HENKILO_KUSKILTA_PIILOTETTAVAT)
+
+
+@router.get("/{henkilo_id}/kaytto", response_model=list[KayttoPaiva])
+async def hae_henkilo_kaytto(henkilo_id: int, db: AsyncSession = Depends(get_db)):
+    henkilo = await db.get(Henkilo, henkilo_id)
+    if henkilo is None:
+        raise HTTPException(status_code=404, detail="Henkilöä ei löytynyt")
+    stmt = (
+        select(Kuvauspaiva.id, Kuvauspaiva.pvm, Kuvauspaiva.paiva_nro)
+        .join(PaivaHenkilo, PaivaHenkilo.paiva_id == Kuvauspaiva.id)
+        .where(PaivaHenkilo.henkilo_id == henkilo_id)
+        .order_by(Kuvauspaiva.pvm)
+    )
+    rivit = (await db.execute(stmt)).all()
+    return [KayttoPaiva(paiva_id=r.id, pvm=r.pvm, paiva_nro=r.paiva_nro) for r in rivit]
 
 
 @router.put("/{henkilo_id}", response_model=HenkiloRead)
@@ -89,5 +108,5 @@ async def poista_henkilo(henkilo_id: int, db: AsyncSession = Depends(get_db)):
     henkilo = await db.get(Henkilo, henkilo_id)
     if henkilo is None:
         raise HTTPException(status_code=404, detail="Henkilöä ei löytynyt")
-    await db.delete(henkilo)
+    henkilo.aktiivinen = False
     await db.commit()

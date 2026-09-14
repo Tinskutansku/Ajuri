@@ -100,6 +100,7 @@ class Henkilo(Base):
     nouto_bufferi_min: Mapped[int] = mapped_column(default=0)      # henkilökohtainen palveluaika noudossa
     max_etuajassa_min: Mapped[int | None]                          # ohittaa globaalin oletuksen (spec §8)
     huomiot: Mapped[str | None] = mapped_column(Text)
+    aktiivinen: Mapped[bool] = mapped_column(default=True)         # soft delete: vanhat versiot viittaavat yhä
 
     tuotanto: Mapped["Tuotanto"] = relationship(back_populates="henkilot")
 
@@ -116,6 +117,7 @@ class Kuski(Base):
     koti_lat: Mapped[float | None]
     koti_lon: Mapped[float | None]
     pickup_bufferi_min: Mapped[int] = mapped_column(default=0)     # kuskikohtainen palveluaika noudossa
+    aktiivinen: Mapped[bool] = mapped_column(default=True)         # soft delete: vanhat versiot viittaavat yhä
 
     tuotanto: Mapped["Tuotanto"] = relationship(back_populates="kuskit")
 
@@ -146,6 +148,7 @@ class Lokaatio(Base):
     lat: Mapped[float | None]
     lon: Mapped[float | None]
     ajo_ohjeet: Mapped[str | None] = mapped_column(Text)           # "tarkemmat ohjeet järkältä"
+    aktiivinen: Mapped[bool] = mapped_column(default=True)         # soft delete: vanhat versiot viittaavat yhä
 
     tuotanto: Mapped["Tuotanto"] = relationship(back_populates="lokaatiot")
 
