@@ -2,15 +2,19 @@
 
 Tilanne: FastAPI-runko + perusdata-CRUD + päiväkohtainen CRUD +
 optimoijaservice (OR-Tools, OSRM, matka-välimuisti, reoptimointi,
-syyanalyysi, skenaariot) + tehtävägenerointi + soft delete + versioiden
-värikoodaus + bufferit valmiina ja testattuna (vaiheet A-C). Lisäksi
-`app/seed.py` — idempotentti seed-skripti joka luo realistisen
-demo-kuvauspäivän oikeilla pääkaupunkiseudun koordinaateilla, ainoa tapa
-saada dataa softaan ilman käsityötä — ja `frontend/`-hakemistossa kevyt
-Vite + React -demofrontti optimoijaservicelle (yksi näkymä: valitse päivä,
-optimoi, katso tulos; ei kirjautumista eikä muokkausnäkymiä, ks.
-`frontend/README.md`). Tämä dokumentti kertoo missä järjestyksessä loput
-rakennetaan ja miksi.
+syyanalyysi, skenaariot) + tehtävägenerointi + soft delete (tehtävät sekä
+henkilöt/kuskit/lokaatiot, käyttötietoendpointein) + versioiden
+värikoodaus + bufferit + roolinäkyvyys + geokoodaus valmiina ja
+testattuna (vaiheet A–F). Lisäksi `app/seed.py` — idempotentti
+seed-skripti joka luo realistisen demo-kuvauspäivän oikeilla
+pääkaupunkiseudun koordinaateilla, ainoa tapa saada dataa softaan ilman
+käsityötä — ja `frontend/`-hakemistossa Vite + React -frontti, jossa on
+tällä hetkellä kaksi välilehteä: **Rekisteri** (henkilöiden ja kuskien
+CRUD, poistodialogi näyttää käyttövaroituksen) ja **Optimointi** (valitse
+päivä, optimoi, katso tulos per kuski).
+
+Backend on kokonaisuudessaan tehty. Jäljellä oleva työ (vaiheet G–J) on
+käyttöliittymää.
 
 ---
 
@@ -70,7 +74,7 @@ minkä listan mukaan mentiin).
 - Blue call sheet → blue ajolista: dokumentit puhuvat samaa kieltä, ja
   "minkä listan mukaan mennään" on yksiselitteinen kysymys
 
-## Vaihe C — V1.1 Bufferit ja henkilökohtaiset aikapreferenssit (spec §8, data+optimoija valmis)
+## Vaihe C — V1.1 Bufferit ja henkilökohtaiset aikapreferenssit (spec §8, valmis)
 
 Yksi migraatio, kolme kenttää — kaikki samaa perhettä (henkilö- ja
 kuskikohtaisia aikasäätöjä optimoinnin oletusten päälle):
@@ -91,34 +95,30 @@ optimoija ei systemaattisesti välttäisi kuskia jolla on realistinen bufferi.
 **Näkyvyys toteutettu vaiheessa D** ("Roolinäkyvyys") roolipohjaisella
 API-suodatuksella, samalla mekanismilla kuin kustannuskentät.
 
-## Vaihe D — React-frontti
+## Vaihe D — Roolinäkyvyys ja Rekisteri-välilehti (valmis)
 
-`frontend/`-hakemistossa on jo kevyt Vite + React -demofrontti
-(optimointinäkymä: valitse päivä, optimoi, katso tulos per kuski — ei
-muokkausnäkymiä). Vaihe D laajentaa tämän täydeksi työkaluksi. Aiempi
-käyttöliittymäluonnos (`docs/ajolista_ui_luonnos_v2.jsx`, jota nykyinen
-demofrontti jo osin seuraa tyylillisesti) toimii speksinä laajennukselle:
-- Välilehdet: Rekisteri (+ Excel-tuonti) · Pohjatiedot · Tehtävät · Ajolista
-- Ajolistassa: Suunnittelu (€, aikajanat, skenaariot) + Tulostusversio (ei €)
-- Uutta luonnoksen päälle:
-  - **"Kuski pois pelistä"** -hätänappi: tarjolla=false + reoptimointi nyt-hetkestä
-    yhdellä painalluksella (se 6:05-paniikkipolku)
-  - **Versiodiffi**: uusi versio vs edellinen — mikä muuttui, kenen ajat siirtyivät
-    (draft call sheet → final -työnkulun ydin)
-  - Sijoittamattomat syineen näkyvästi esiin
-- **Roolinäkyvyys API-tasolla (valmis)**: `app/rooli.py` (roolin lähde,
-  toistaiseksi `X-Rooli`-header, oletus TUOTANTO — EI turvaominaisuus,
-  ks. README) + `app/response_filter.py` (kenttäsuodatus). KUSKI-roolilta
-  pois kaikista vastauksista (kenttä puuttuu kokonaan, ei vain `null`):
-  - kustannuskentät: `ajolista_versio.kokonaiskustannus_eur`,
-    kuskikohtainen `lisakustannus_eur`, koko skenaariovertailu
-  - vaihe C:n henkilökohtaiset kentät: `henkilo.nouto_bufferi_min`,
-    `henkilo.max_etuajassa_min`, `kuski.pickup_bufferi_min`,
-    `kuski.tuntihinta_eur`
-  - Samalla lisätty puuttuneet luku-endpointit joita kuskin ajolistanäkymä
-    tarvitsee (niitä ei ollut ollenkaan aiemmin — vain `/optimoi`, joka
-    laskee UUDEN version joka kutsulla): `GET /versiot?paiva_id=&julkaistu=`,
-    `GET /versiot/{id}`, `GET /keikat?versio_id=`
+**Roolinäkyvyys API-tasolla:** `app/rooli.py` (roolin lähde, toistaiseksi
+`X-Rooli`-header, oletus TUOTANTO — EI turvaominaisuus, ks. README) +
+`app/response_filter.py` (kenttäsuodatus, yksi paikka jossa määritellään
+mitä KUSKI-rooli ei näe). KUSKI-roolilta pois kaikista vastauksista
+(kenttä puuttuu kokonaan, ei vain `null`):
+- kustannuskentät: `ajolista_versio.kokonaiskustannus_eur`,
+  kuskikohtainen `lisakustannus_eur`, koko skenaariovertailu
+- vaihe C:n henkilökohtaiset kentät: `henkilo.nouto_bufferi_min`,
+  `henkilo.max_etuajassa_min`, `kuski.pickup_bufferi_min`,
+  `kuski.tuntihinta_eur`
+- Samalla lisätty puuttuneet luku-endpointit joita kuskin ajolistanäkymä
+  tarvitsee (niitä ei ollut ollenkaan aiemmin — vain `/optimoi`, joka
+  laskee UUDEN version joka kutsulla): `GET /versiot?paiva_id=&julkaistu=`,
+  `GET /versiot/{id}`, `GET /keikat?versio_id=`
+
+**Rekisteri-välilehti frontissa:** henkilöiden (näyttelijät/työryhmä) ja
+kuskien CRUD ilman Swaggeria. `App.jsx` on ohut kuori välilehtinavigaatiolla,
+`Rekisteri.jsx` ja `Optimointi.jsx` omina komponentteinaan. Inline-editointi:
+tekstikentät tallentuvat blur:issa vain jos arvo muuttui, valinnat ja ruksit
+heti. "+ Lisää" luo rivin paikallisesti ja lähettää POST:in vasta kun nimi on
+annettu (ei roskarivejä vahinkoklikkauksista). "ei koordinaatteja" -merkki
+riveillä joilta geokoodaus puuttuu.
 
 ## Vaihe E — Geokoodaus (valmis)
 
@@ -145,28 +145,128 @@ demofrontti jo osin seuraa tyylillisesti) toimii speksinä laajennukselle:
 
 ---
 
+## Vaihe F — Soft delete perusdatalle + käyttötieto (valmis)
+
+**Ongelma:** `DELETE /kuskit/{id}` (samoin henkilöt ja lokaatiot) kaatuu
+tällä hetkellä 500:aan `IntegrityError`-virheeseen, jos riviin viittaa
+`paiva_kuski`/`paiva_henkilo`/`paiva_lokaatio`-rivejä. Tietokanta toimii
+oikein — se estää historian rikkomisen — mutta käyttäjä ei saa tietää
+mitään, ja kovan poiston salliminen muuttaisi vanhoja ajolistoja
+jälkikäteen.
+
+Sama ratkaisu kuin tehtäville vaiheessa B2, nyt perusdatalle. Sen jälkeen
+kaikilla resursseilla on sama poistosemantiikka, mikä on helpompi selittää
+kuin "tehtävät soft, muut hard".
+
+- `henkilo.aktiivinen`, `kuski.aktiivinen`, `lokaatio.aktiivinen`
+  (bool, oletus True) + migraatio
+- `DELETE` merkitsee passiiviseksi; ulkoinen käytös ennallaan
+  (sama statuskoodi, rivi katoaa listauksista)
+- `GET`-listaukset piilottavat passiiviset oletuksena;
+  `sisalla_passiiviset=true` näyttää myös ne
+- `GET /{resurssi}/{id}/kaytto` → missä kuvauspäivissä rivi on mukana
+  (päivän id, pvm, paiva_nro) — frontin varoitusdialogia varten
+- Optimointi ja generointi käyttävät vain aktiivisia rivejä
+- Frontin poistodialogi: jos rivi on käytössä, näytä konkreettinen
+  varoitus ennen vahvistusta:
+  > "Kuski on mukana 3 kuvauspäivässä (22/49, 23/49, 24/49). Poistaminen
+  > piilottaa hänet listoilta, mutta vanhat ajolistat säilyvät ennallaan.
+  > Poistetaanko?"
+- Lisäksi: `paiva_henkilo`/`paiva_kuski`/`paiva_lokaatio`-routerit (POST/PUT)
+  estävät passiivisen henkilön/kuskin/lokaation liittämisen kuvauspäivään
+  (422) — muuten API sallisi hiljaisen ristiriidan jota olisi vaikea
+  jäljittää (poistettu rivi katoaisi optimoinnista/generoinnista selittämättä)
+
+## Vaihe G — Pohjatiedot- ja Tehtävät-välilehdet
+
+Tämän jälkeen koko putki toimii ilman Swaggeria: henkilöt sisään →
+päivä kasaan → generoi → optimoi → ajolista ulos.
+
+**Pohjatiedot:**
+- Kuvauspäivän valinta ja luonti (call, lounas, wrap, päivä nro)
+- Päivän lokaatiot järjestyksineen ja siirtymäaikoineen
+- Ketkä ovat mukana (`paiva_henkilo`): oma call, oma_auto, ei_paluuta,
+  siirtyy, henkilökohtainen `siirtyma_klo`
+- Ketkä kuskit tarjolla (`paiva_kuski`) ja millä autolla
+
+**Tehtävät:**
+- `POST /paivat/{id}/generoi-tehtavat` -nappi; generoitu lista näkyviin
+- Generoidut ja käsin lisätyt erotettuina (merkintä riville)
+- Tehtävien muokkaus, poisto ja lisäys käsin (erikoiskeikat: lounashaku,
+  kortit, lentokenttänouto)
+- Generoinnin `varoitus`-kenttä näkyviin, jos päivällä on julkaistu versio
+
+## Vaihe H — Osoitteen automaattitäydennys
+
+Nyt osoitteen voi kirjoittaa väärin eikä käyttäjä näe mihin se osui —
+"Humalistonkatu 1" voi olla Turussa tai Helsingissä, ja ainoa palaute on
+"ei koordinaatteja" -merkki joka kertoo vain onnistuiko haku, ei osuiko
+se oikeaan paikkaan.
+
+- `GeocoderClient`-rajapintaan uusi metodi: ehdotukset (esim. 5 kpl),
+  ei vain paras osuma
+- `GET /geokoodaa/ehdota?q=...` → lista ehdotuksia nimineen ja
+  koordinaatteineen
+- Frontissa osoitekenttä ehdottaa kirjoittaessa; valinta täyttää sekä
+  osoitteen että koordinaatit
+- **Nominatimin 1 kutsu/s:** haku vasta ~500 ms kirjoitustauon jälkeen
+  ja vähintään ~5 merkin jälkeen — muuten käyttöehdot rikkoutuvat heti
+- Käytössä sekä Rekisterissä (henkilöt, kuskit) että Pohjatiedoissa
+  (lokaatiot), siksi tehdään vasta vaiheen G jälkeen
+
+## Vaihe I — Tulostusversio ja "kuski pois pelistä"
+
+Molemmat pieniä, molemmat tarvitaan heti oikeassa käytössä.
+
+- **Tulostusversio:** ajolista ilman kustannuksia, yhteystiedot mukana,
+  A4-henkinen tuloste (`window.print()`), muu UI piilotetaan printistä.
+  Runnerille ei kuulu se mikä maksaa mitäkin.
+- **"Kuski pois pelistä" -hätänappi:** `tarjolla=false` + reoptimointi
+  `nyt`-hetkestä yhdellä painalluksella. Se 6:05-paniikkipolku: auto ei
+  käynnisty, kuski pois, uusi ajolista minuutissa. Kun korvaava auto
+  löytyy, kuski takaisin peliin ja uusi optimointi.
+
+## Vaihe J — Versiodiffi
+
+Draft call sheet → final -työnkulun ydin: kun uusi versio syntyy, mitä
+muuttui edelliseen nähden. Ilman tätä koordi joutuu vertailemaan kahta
+listaa rivi riviltä juuri silloin kun on eniten kiire.
+
+- Kahden version vertailu: kenen ajat siirtyivät, mitkä keikat vaihtoivat
+  kuskia, mikä on uutta, mikä poistui
+- Esim. "Näyttelijä 2: nouto 7:40 → 8:10 · Tiinalle +1 keikka · muut ennallaan"
+- Visuaalisesti hankalin osa, tehdään viimeisenä kun muu on paikallaan
+
+---
+
 ## V2 — arvojärjestyksessä
 
 1. **Kuskin mobiilinäkymä + statusviestintä** (spec §9) — "Kyydissä"/"Perillä"
    -napit, automaattiviestit (maskille saapumisarvio), muistutukset, offline-jono.
    Suurin päivittäinen ajansäästö optimoinnin jälkeen.
-2. **Taksi-fallback** — sijoittamaton keikka → "merkitse taksille", näkyy
+2. **Excel-tuonti** rekisteriin — nimi, titteli/rooli, osoite, puhelin;
+   koordinaatit hoituvat geokoodauksella (vaihe E), joten tuonti on nyt
+   oikeasti käyttökelpoinen
+3. **Taksi-fallback** — sijoittamaton keikka → "merkitse taksille", näkyy
    ajolistassa TAKSI-rivinä + kustannusarvio
-3. **Työvuororaportti** — kuskien vuorot + viikkosaldo (37,5 h/vko) exportina
+4. **Työvuororaportti** — kuskien vuorot + viikkosaldo (37,5 h/vko) exportina
    TP:n tarkistukseen ja vuoroilmoituksiin
-4. **Korjausehdotukset sijoittamattomille** ("ota Kalle käyttöön, +88 €") —
+5. **Korjausehdotukset sijoittamattomille** ("ota Kalle käyttöön, +88 €") —
    skenaariomoottori on jo olemassa, tämä on sen paketointia
-5. Käyttäjähallinta + autentikointi (roolit oikeasti voimaan)
-6. Itseoppivat bufferit toteumadatasta
-7. Max-paikat hyväksynnällä, shuttle-ikkunat, viikkosaldo optimointirajoitteena,
+6. Käyttäjähallinta + autentikointi (roolit oikeasti voimaan — `X-Rooli`
+   on väliaikainen eikä turvaominaisuus)
+7. Itseoppivat bufferit toteumadatasta
+8. Max-paikat hyväksynnällä, shuttle-ikkunat, viikkosaldo optimointirajoitteena,
    asynkroninen optimointi, osastoautot hätävarana
-8. Tuotantoreititin (oma OSRM-instanssi tai ORS-avain) — RouterClient valmiina
-9. **"Julkaistu versio vanhentunut" -tila yleisemmin** — nyt varoitus tulee
-   vain `generoi-tehtavat`-kutsusta (vaihe B), mutta sama pätee kun
-   tehtäviä muokataan käsin tai kuskeja otetaan pois tarjolta julkaisun
-   jälkeen. Aikaleimavertailu (onko päivän data muuttunut version luonnin
-   jälkeen) ratkaisisi tämän kerralla kaikille muutostavoille erillisten
-   kohdennettujen varoitusten sijaan.
+9. Tuotantoreititin (oma OSRM-instanssi tai ORS-avain) — RouterClient valmiina
+10. **"Julkaistu versio vanhentunut" -tila yleisemmin** — nyt varoitus tulee
+    vain `generoi-tehtavat`-kutsusta (vaihe B), mutta sama pätee kun
+    tehtäviä muokataan käsin tai kuskeja otetaan pois tarjolta julkaisun
+    jälkeen. Aikaleimavertailu (onko päivän data muuttunut version luonnin
+    jälkeen) ratkaisisi tämän kerralla kaikille muutostavoille erillisten
+    kohdennettujen varoitusten sijaan.
+11. Pieniä: tietokantayhteyden virhe → 503 raakan tracebackin sijaan,
+    `GET /` → tervetulovastaus 404:n sijaan
 
 ## Pitchi (kun tätä esitellään alan ihmisille)
 
