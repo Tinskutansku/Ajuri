@@ -32,6 +32,11 @@ kuljetustehtävästä useilla samanaikaisilla rajoitteilla:
   ja samat autot hoitavat sekä aamun noudot että illan paluukyydit —
   reitit pitää ketjuttaa koko päivän ajalta, ei vain yhtä siirtymää
   kerrallaan.
+- **Suunnitelma ei pysy tehtynä.** Kun tilanne muuttuu kesken päivän, jo
+  ajetut keikat on lukittava ja loput suunniteltava uusiksi niin, ettei
+  pieni muutos myllää koko loppupäivää. Jokainen versio on säilyttävä
+  sellaisenaan, jotta jälkikäteen voi tarkistaa minkä listan mukaan
+  mentiin.
 
 ## Esimerkkitulos
 
@@ -69,24 +74,30 @@ halvempaa kuin lisäkuskin palkkaaminen.
 ## Tekninen toteutus
 
 **Stack:** Python 3.13, FastAPI, SQLAlchemy 2.0 (async), PostgreSQL 16,
-Alembic, Google OR-Tools, OSRM, React + Vite, Docker Compose.
+Alembic, Google OR-Tools, OSRM, Nominatim, React + Vite, Docker Compose.
 
 **Arkkitehtuuri:**
 
 ```
 app/
-  models.py           SQLAlchemy 2.0 -mallit
-  routers/            REST-endpointit (CRUD + optimointi)
+  models.py              SQLAlchemy 2.0 -mallit
+  schemas.py             Pydantic v2 -skeemat (Create/Read erikseen)
+  rooli.py               Roolin lähde (X-Rooli-header, ks. alempana)
+  response_filter.py     Roolipohjainen kenttäsuodatus vastauksiin
+  routers/               REST-endpointit (CRUD, generointi, optimointi)
   services/
-    optimoija.py         OR-Tools-malli
-    kustannus.py          Sopimustyyppikohtainen kustannuslaskenta
+    optimoija.py           OR-Tools-malli, syyanalyysi, skenaariot
+    kustannus.py           Sopimustyyppikohtainen kustannuslaskenta
     matka_cache.py         Ajoaikojen välimuisti
     router_client.py       Reititys-API-abstraktio (OSRM)
-  seed.py             Demo-kuvauspäivän generointi
-alembic/              Tietokantamigraatiot
-tests/                Pytest-testit (25 kpl)
-frontend/             Vite + React -demofrontti
-docs/                 Spesifikaatiot ja tuotekartta
+    geocoder_client.py     Geokoodaus-API-abstraktio (Nominatim)
+    geokoodaus_cache.py    Osoitteiden geokoodausvälimuisti
+  seed.py                Demo-kuvauspäivän generointi
+alembic/                 Tietokantamigraatiot
+tests/                   Pytest-testit
+frontend/                Vite + React -frontti
+docs/                    Spesifikaatiot, tuotekartta, käynnistysohjeet
+ajolista_optimoija.py    Alkuperäinen OR-Tools-prototyyppi (itsenäinen)
 ```
 
 **Optimointimalli:** kuljetustehtävät mallinnetaan
@@ -97,12 +108,38 @@ solmugraafin ajoneuvoja, jotka lähtevät kotoa (tai edellisen version
 viimeisestä lukitusta keikasta reoptimoinnissa) ja palaavat sinne.
 Kapasiteettirajoite on toteutettu per-ajoneuvo-kysyntäfunktiolla, mikä
 mahdollistaa myös "ei kimppakyytiä" -rajoitteen (kysyntä = koko auton
-kapasiteetti täyttävä silloin kun kyseistä henkilöä kuljetetaan).
+kapasiteetin täyttävä silloin kun kyseistä henkilöä kuljetetaan).
 Kustannusmalli ohjaa hakua sopimustyyppikohtaisilla kiinteillä ja
 ylityöporrastetuilla kustannuksilla; tarkka euromäärä lasketaan
-ratkaisun jälkeen erikseen. Reititys-API:sta (OSRM) haetut ajoajat ja
--matkat välimuistetaan tietokantaan pistepareittain, jotta samoja
-osoitteita ei kysytä uudestaan.
+ratkaisun jälkeen erikseen.
+
+**Palveluaikabufferit.** Kuskilla ja henkilöllä voi olla oma
+puskuriaika (`kuski.pickup_bufferi_min`, `henkilo.nouto_bufferi_min`) —
+toisilla noudot vievät järjestelmällisesti kauemmin, ja joku on
+tyypillisesti myöhässä. Bufferit lisätään noutosolmun kestoon
+ajoneuvokohtaisilla transit-callbackeilla, mutta **vain aikadimensioon,
+ei kaarikustannukseen**: muuten optimoija alkaisi systemaattisesti
+välttää kuskia, josta on kirjattu realistista dataa.
+
+**Ulkoiset palvelut abstraktion takana.** Reititys (OSRM) ja geokoodaus
+(Nominatim) ovat kumpikin oman rajapintansa takana ja kumpikin
+välimuistitettu tietokantaan pistepareittain ja osoitteittain — samat
+hotellit, lokaatiot ja osoitteet toistuvat päivästä toiseen, joten
+ulkoista palvelua kutsutaan harvoin. Nominatim-toteutus noudattaa
+palvelun käyttöehtoja (yksilöivä User-Agent, enintään 1 kutsu/s).
+Testeissä käytetään deterministisiä toteutuksia, joten yksikään testi ei
+kosketa verkkoa. Julkinen OSRM-demopalvelin ei sovi tuotantoon (ei
+SLA:ta, rate limit) — vaihto omaan instanssiin tai kaupalliseen
+palveluun on yksi uusi luokka ja asetusmuutos.
+
+**Versiointi ja soft delete.** Jokainen optimointiajo tallentuu omana
+`ajolista_versio`-rivinään, eikä mitään kirjoiteta vanhan päälle.
+Julkaistut versiot saavat alan call sheet -käytännön mukaisen
+värikoodin (WHITE → BLUE → PINK → YELLOW, sen jälkeen numeroituna) —
+blue call sheet, blue ajolista. Tehtäviä, henkilöitä, kuskeja ja
+lokaatioita ei koskaan poisteta kovaa kautta, koska niihin viittaa
+aiempien versioiden keikkoja: `DELETE` merkitsee rivin passiiviseksi,
+jolloin se katoaa listauksista mutta vanha ajolista pysyy ehjänä.
 
 ## Käynnistys
 
@@ -132,7 +169,7 @@ python -m app.seed
 uvicorn app.main:app --reload
 ```
 
-**Frontend-demo:**
+**Frontend:**
 
 ```
 cd frontend
@@ -144,22 +181,43 @@ npm run dev
 Avaa http://localhost:5173. Vaatii backendin käynnissä portissa 8000 —
 CORS on sallittu porttiin 5173 (`app/config.py: cors_origins`).
 
+Frontissa on kaksi välilehteä: **Rekisteri** (henkilöiden ja kuskien
+ylläpito) ja **Optimointi** (valitse kuvauspäivä, optimoi, katso
+tulos per kuski aikajanoineen, kustannuksineen ja skenaariovertailuineen).
+Päiväkohtaiset syöttönäkymät ovat työn alla — ks.
+[docs/tuotekartta.md](docs/tuotekartta.md).
+
+Yksityiskohtaiset käynnistys- ja vianetsintäohjeet:
+[docs/ajuri-kaynnistys.md](docs/ajuri-kaynnistys.md).
+
 ## Testit
 
 ```
 pytest
 ```
 
-25 testiä, ajavat SQLite-muistikannalla (ei vaadi Postgresia):
+103 testiä, ajavat SQLite-muistikannalla (ei vaadi Postgresia).
+Ulkoiset palvelut korvataan deterministisillä toteutuksilla, joten
+testit eivät kosketa verkkoa.
 
-- kustannuskaava jokaiselle sopimustyypille ja ylityöportaille (9)
-- OR-Tools-malli synteettisillä skenaarioilla, mukaan lukien
-  "ei kimppakyytiä" - ja kiinteä kuski -rajoitteet (6)
-- regressiotesti alkuperäisellä 17 tehtävän / 5 kuskin
-  prototyyppidatalla, joka vahtii optimoinnin laatua eikä vain muotoa (1)
-- REST-endpointtien testit: optimointi, päiväkohtainen CRUD,
-  version julkaisu ja keikan kuittaus (8)
-- savutesti perusdatan CRUD-ketjulle (1)
+Painopisteet:
+
+- **Kustannuslogiikka** yksikkötasolla: jokainen sopimustyyppi ja
+  ylityöporras erikseen
+- **OR-Tools-malli** synteettisillä skenaarioilla: aikaikkunat,
+  kapasiteetti, "ei kimppakyytiä", kiinteä kuski, bufferit,
+  sijoittamattomien syykoodit
+- **Regressiotesti kokonaisella vakiopäivällä** (17 tehtävää, 5 kuskia)
+  — tämä vahtii optimoinnin *laatua*, ei vain sitä ettei koodi kaadu
+- **Reoptimoinnin reunatapaukset**: lukitun keikan tehtävä tai kuski on
+  passivoitu myöhemmin — ei saa kaatua, ja keikan tiedot on silti
+  näytettävä oikein
+- **Rajapintatestit**: CRUD, tehtävägenerointi, version julkaisu ja
+  värikoodaus, keikan kuittaus, roolisuodatus, geokoodaus ja sen
+  välimuisti, soft delete
+
+Migraatiot ajetaan ja `alembic check` varmistetaan erikseen oikeaa
+PostgreSQL:ää vasten, koska testit luovat taulut suoraan malleista.
 
 ## Roolit ja X-Rooli-header
 
@@ -182,11 +240,12 @@ curl -H "X-Rooli: kuski" http://localhost:8000/henkilot
 **Tämä ei ole turvaominaisuus.** `X-Rooli` on asiakkaan itsensä
 asettama header — kuka tahansa voi pyytää TUOTANTO-näkymän vaihtamalla
 headerin arvon. Se on väliaikainen UI:n karsintamekanismi ennen
-autentikointia (ks. [docs/tuotekartta.md](docs/tuotekartta.md) V2 #5:
+autentikointia (ks. [docs/tuotekartta.md](docs/tuotekartta.md) V2:
 "Käyttäjähallinta + autentikointi"). Kun JWT-pohjainen autentikointi
 rakennetaan, vain `app/rooli.py`:n `nykyinen_rooli`-funktion sisältö
-vaihtuu (header → JWT-claim) — itse kenttäsuodatus (`app/response_filter.py`)
-ja kaikki sitä käyttävät reitittimet pysyvät koskemattomina.
+vaihtuu (header → JWT-claim) — itse kenttäsuodatus
+(`app/response_filter.py`) ja kaikki sitä käyttävät reitittimet pysyvät
+koskemattomina.
 
 Myös huomio: **Swagger-dokumentaatio (`/docs`) näyttää aina kaikki
 kentät roolista riippumatta** — endpointtien `response_model` on jätetty
@@ -197,8 +256,18 @@ kuvaus (mitä kenttiä VOISI olla) on aina täysi.
 
 ## Tilanne ja jatkokehitys
 
-Valmiina: perusdatan ja päiväkohtaisen datan CRUD, optimointiservice
-kustannuslaskentoineen ja reoptimoinnilla, demo-frontti. Seuraavat
-vaiheet (tehtävägenerointi, bufferit, muokattava käyttöliittymä,
-geokoodaus, kuskin mobiilinäkymä) on kuvattu järjestyksessä ja
-perusteluineen tiedostossa [docs/tuotekartta.md](docs/tuotekartta.md).
+**Valmiina:** perusdatan ja päiväkohtaisen datan CRUD, tehtävägenerointi
+call timeista, optimointiservice kustannuslaskentoineen,
+reoptimoinnilla ja syyanalyysilla, versiointi ja värikoodaus, soft
+delete kaikelle datalle, palveluaikabufferit, roolipohjainen
+kenttäsuodatus, geokoodaus välimuisteineen, sekä frontin Rekisteri- ja
+Optimointi-välilehdet.
+
+**Seuraavaksi:** päiväkohtaiset syöttönäkymät, osoitteen
+automaattitäydennys, tulostusversio ja versiodiffi. Kaikki jäljellä
+oleva työ on kuvattu järjestyksessä ja perusteluineen tiedostossa
+[docs/tuotekartta.md](docs/tuotekartta.md).
+
+Optimoijan rajapinta, kustannusmalli, rajoitteet ja reunatapaukset on
+speksattu erikseen tiedostossa
+[docs/optimoija-spec.md](docs/optimoija-spec.md).
