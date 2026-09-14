@@ -131,6 +131,65 @@ export function Kortti({ otsikko, nro, lisa, children }) {
   );
 }
 
+export function Kentta({ value, onChange, onBlur, w = 72, ph = "", type = "text" }) {
+  return (
+    <input
+      value={value}
+      placeholder={ph}
+      type={type}
+      onChange={(e) => onChange(e.target.value)}
+      onBlur={onBlur}
+      style={{
+        width: w,
+        fontFamily: "'IBM Plex Mono',monospace",
+        fontSize: 13,
+        fontWeight: 600,
+        padding: "6px 8px",
+        border: `2px solid ${C.line}`,
+        borderRadius: 8,
+        background: C.card,
+        color: C.inkSolid,
+      }}
+    />
+  );
+}
+
+export function Ruksi({ checked, onChange, label }) {
+  return (
+    <label
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        fontSize: 12,
+        fontFamily: "'Archivo',sans-serif",
+        fontWeight: 600,
+        cursor: "pointer",
+        color: C.inkSolid,
+      }}
+    >
+      <span
+        onClick={() => onChange(!checked)}
+        style={{
+          width: 18,
+          height: 18,
+          borderRadius: 5,
+          border: `2px solid ${C.line}`,
+          background: checked ? C.orange : C.card,
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: C.card,
+          fontSize: 12,
+        }}
+      >
+        {checked ? "✓" : ""}
+      </span>
+      {label}
+    </label>
+  );
+}
+
 export function Badge({ children, color = C.ochre }) {
   return (
     <span
