@@ -84,7 +84,7 @@ istunnon suunnitelma, 961 riviä).
 
 ## Pienet (voi tehdä kun iso kohta on odottamassa)
 
-- `[ ]` Tietokantayhteyden virhe → 503 raa'an tracebackin sijaan (testi)
-- `[ ]` `GET /` → tervetulovastaus 404:n sijaan (testi)
-- `[ ]` pytest-asyncio-varoitus pois: `asyncio_default_fixture_loop_scope`
+- `[PR #3]` Tietokantayhteyden virhe → 503 raa'an tracebackin sijaan (testi)
+- `[PR #3]` `GET /` → tervetulovastaus 404:n sijaan (testi)
+- `[PR #3]` pytest-asyncio-varoitus pois: `asyncio_default_fixture_loop_scope`
   `pytest.ini`:hin
