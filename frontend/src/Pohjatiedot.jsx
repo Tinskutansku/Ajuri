@@ -219,6 +219,10 @@ export default function Pohjatiedot() {
       setVirhe("Uudella kuvauspäivällä pitää olla päivämäärä ja call time.");
       return;
     }
+    if (paivat.some((p) => p.pvm === uusiPaiva.pvm)) {
+      setVirhe(`Tuotannossa on jo kuvauspäivä ${uusiPaiva.pvm}. Valitse se listalta tai vaihda päivämäärä.`);
+      return;
+    }
     try {
       const luotu = await api.luoKuvauspaiva({
         ...paivaPayload({ ...uusiPaiva, tuotanto_id: Number(tuotantoId) }),

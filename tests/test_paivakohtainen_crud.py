@@ -123,3 +123,34 @@ async def test_henkilo_max_etuajassa_min_validoidaan(client):
     vastaus = await client.post("/henkilot", json={**perus, "max_etuajassa_min": 60})
     assert vastaus.status_code == 201
     assert vastaus.json()["max_etuajassa_min"] == 60
+
+
+async def test_kuvauspaiva_sama_pvm_409(client):
+    """Sama päivämäärä kahdesti samaan tuotantoon -> 409 eikä 500,
+    sekä luonnissa että päivityksessä. Eri tuotannossa sama pvm käy."""
+    t1 = (await client.post("/tuotannot", json={"nimi": "T1"})).json()["id"]
+    t2 = (await client.post("/tuotannot", json={"nimi": "T2"})).json()["id"]
+    perus = {"call_time": "08:00:00"}
+
+    eka = await client.post("/kuvauspaivat", json={**perus, "tuotanto_id": t1, "pvm": "2026-07-10"})
+    assert eka.status_code == 201
+
+    tupla = await client.post("/kuvauspaivat", json={**perus, "tuotanto_id": t1, "pvm": "2026-07-10"})
+    assert tupla.status_code == 409
+    assert "päivämäärälle" in tupla.json()["detail"]
+
+    toinen_tuotanto = await client.post(
+        "/kuvauspaivat", json={**perus, "tuotanto_id": t2, "pvm": "2026-07-10"}
+    )
+    assert toinen_tuotanto.status_code == 201
+
+    toka = await client.post("/kuvauspaivat", json={**perus, "tuotanto_id": t1, "pvm": "2026-07-11"})
+    vastaus = await client.put(
+        f"/kuvauspaivat/{toka.json()['id']}",
+        json={**perus, "tuotanto_id": t1, "pvm": "2026-07-10"},
+    )
+    assert vastaus.status_code == 409
+
+    # Epäonnistunut päivitys ei saa jättää riviä muutettuun tilaan.
+    haettu = await client.get(f"/kuvauspaivat/{toka.json()['id']}")
+    assert haettu.json()["pvm"] == "2026-07-11"

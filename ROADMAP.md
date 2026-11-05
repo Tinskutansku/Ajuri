@@ -14,8 +14,8 @@ Tilat
 
 ## Vaihe G — Pohjatiedot- ja Tehtävät-välilehdet
 
-### G1 `[ ]` Pohjatiedot-välilehti luonnoksesta
-Luonnos on valmiina: `docs/luonnokset/Pohjatiedot.jsx` (edellisen
+### G1 `[PR #2]` Pohjatiedot-välilehti luonnoksesta
+Luonnos oli `docs/luonnokset/Pohjatiedot.jsx`, nyt `frontend/src/Pohjatiedot.jsx` (edellisen
 istunnon suunnitelma, 961 riviä).
 - Siirrä `frontend/src/Pohjatiedot.jsx`:ksi ja lisää välilehti `App.jsx`:n
   `TABS`-listaan Rekisterin ja Optimoinnin väliin

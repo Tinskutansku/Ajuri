@@ -67,3 +67,67 @@ export function poistaKuski(id) {
 export function haeKuskiKaytto(id) {
   return pyyda(`/kuskit/${id}/kaytto`);
 }
+
+// --- Pohjatiedot: kuvauspäivät, lokaatiot, ajoneuvot ja päiväkohtaiset rivit ---
+
+const json = (method, data) => ({ method, body: JSON.stringify(data) });
+
+export function haeKuvauspaivatTuotannolle(tuotantoId) {
+  return pyyda(`/kuvauspaivat?tuotanto_id=${tuotantoId}`);
+}
+export function luoKuvauspaiva(data) {
+  return pyyda("/kuvauspaivat", json("POST", data));
+}
+export function paivitaKuvauspaiva(id, data) {
+  return pyyda(`/kuvauspaivat/${id}`, json("PUT", data));
+}
+
+export function haeLokaatiot(tuotantoId) {
+  return pyyda(`/lokaatiot?tuotanto_id=${tuotantoId}`);
+}
+export function luoLokaatio(data) {
+  return pyyda("/lokaatiot", json("POST", data));
+}
+
+export function haeAjoneuvot(tuotantoId) {
+  return pyyda(`/ajoneuvot?tuotanto_id=${tuotantoId}`);
+}
+
+export function haePaivaLokaatiot(paivaId) {
+  return pyyda(`/paiva-lokaatiot?paiva_id=${paivaId}`);
+}
+export function luoPaivaLokaatio(data) {
+  return pyyda("/paiva-lokaatiot", json("POST", data));
+}
+export function paivitaPaivaLokaatio(id, data) {
+  return pyyda(`/paiva-lokaatiot/${id}`, json("PUT", data));
+}
+export function poistaPaivaLokaatio(id) {
+  return pyyda(`/paiva-lokaatiot/${id}`, { method: "DELETE" });
+}
+
+export function haePaivaHenkilot(paivaId) {
+  return pyyda(`/paiva-henkilot?paiva_id=${paivaId}`);
+}
+export function luoPaivaHenkilo(data) {
+  return pyyda("/paiva-henkilot", json("POST", data));
+}
+export function paivitaPaivaHenkilo(id, data) {
+  return pyyda(`/paiva-henkilot/${id}`, json("PUT", data));
+}
+export function poistaPaivaHenkilo(id) {
+  return pyyda(`/paiva-henkilot/${id}`, { method: "DELETE" });
+}
+
+export function haePaivaKuskit(paivaId) {
+  return pyyda(`/paiva-kuskit?paiva_id=${paivaId}`);
+}
+export function luoPaivaKuski(data) {
+  return pyyda("/paiva-kuskit", json("POST", data));
+}
+export function paivitaPaivaKuski(id, data) {
+  return pyyda(`/paiva-kuskit/${id}`, json("PUT", data));
+}
+export function poistaPaivaKuski(id) {
+  return pyyda(`/paiva-kuskit/${id}`, { method: "DELETE" });
+}

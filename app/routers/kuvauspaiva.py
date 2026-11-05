@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -8,12 +9,25 @@ from app.schemas import KuvauspaivaCreate, KuvauspaivaRead
 
 router = APIRouter(prefix="/kuvauspaivat", tags=["kuvauspaivat"])
 
+PVM_VARATTU = "Tuotannossa on jo kuvauspäivä tälle päivämäärälle"
+
+
+async def _commit_tai_409(db: AsyncSession) -> None:
+    # (tuotanto_id, pvm) on yksilöllinen kannassa. Ilman tätä tuplapäivä
+    # kaatui 500:aan, ja selain näki vain "Failed to fetch" (CORS-otsakkeet
+    # puuttuvat käsittelemättömästä virheestä).
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(status_code=409, detail=PVM_VARATTU)
+
 
 @router.post("", response_model=KuvauspaivaRead, status_code=201)
 async def luo_kuvauspaiva(data: KuvauspaivaCreate, db: AsyncSession = Depends(get_db)):
     paiva = Kuvauspaiva(**data.model_dump())
     db.add(paiva)
-    await db.commit()
+    await _commit_tai_409(db)
     await db.refresh(paiva)
     return paiva
 
@@ -46,7 +60,7 @@ async def paivita_kuvauspaiva(
         raise HTTPException(status_code=404, detail="Kuvauspäivää ei löytynyt")
     for kentta, arvo in data.model_dump().items():
         setattr(paiva, kentta, arvo)
-    await db.commit()
+    await _commit_tai_409(db)
     await db.refresh(paiva)
     return paiva
 
