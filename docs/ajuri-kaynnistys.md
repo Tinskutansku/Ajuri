@@ -9,7 +9,8 @@ ikkunoihinsa ("AJURI backend", "AJURI frontti") ja avaa selaimen.
 
 Sammutus: tuplaklikkaa **`Sammuta AJURI.cmd`** (data säilyy).
 
-Demodatan kanssa: aja PowerShellissä `.\Käynnistä AJURI.cmd -Seed`.
+Demodatan kanssa: aja projektin juuressa PowerShellissä
+`& '.\Käynnistä AJURI.cmd' -Seed`.
 
 Pikakuvake työpöydälle: hiiren oikea `Käynnistä AJURI.cmd` →
 *Näytä lisää vaihtoehtoja* → *Lähetä* → *Työpöytä (luo pikakuvake)*.
