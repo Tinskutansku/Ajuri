@@ -1,6 +1,28 @@
 # AJURI — käynnistysmuistilappu
 
-Kolme terminaalia. Kaikki komennot PowerShellissä.
+## Pikakäynnistys (suositus)
+
+Tuplaklikkaa projektin juuressa **`Käynnistä AJURI.cmd`**. Se tekee
+kaiken alla kuvatun yhdellä kertaa: käynnistää Docker Desktopin tarvittaessa,
+nostaa tietokannan, ajaa migraatiot, avaa backendin ja frontin omiin
+ikkunoihinsa ("AJURI backend", "AJURI frontti") ja avaa selaimen.
+
+Sammutus: tuplaklikkaa **`Sammuta AJURI.cmd`** (data säilyy).
+
+Demodatan kanssa: aja projektin juuressa PowerShellissä
+`& '.\Käynnistä AJURI.cmd' -Seed`.
+
+Pikakuvake työpöydälle: hiiren oikea `Käynnistä AJURI.cmd` →
+*Näytä lisää vaihtoehtoja* → *Lähetä* → *Työpöytä (luo pikakuvake)*.
+
+Jos jokin vaihe epäonnistuu, ikkuna jää auki ja kertoo mikä. Alla olevat
+käsin tehtävät vaiheet ovat sama asia osiin purettuna vianetsintää varten.
+
+---
+
+## Käsin: kolme terminaalia
+
+Kaikki komennot PowerShellissä.
 Projektin juuri: `C:\Users\tanja\Source\repos\Ajuri`
 
 ---

@@ -143,6 +143,8 @@ jolloin se katoaa listauksista mutta vanha ajolista pysyy ehjänä.
 
 ## Käynnistys
 
+Windowsilla helpoin tapa on tuplaklikata juuren `Käynnistä AJURI.cmd` (ja sammuttaa `Sammuta AJURI.cmd`). Tarkemmat ohjeet: [docs/ajuri-kaynnistys.md](docs/ajuri-kaynnistys.md).
+
 **Backend (Docker Compose):**
 
 ```
