@@ -12,12 +12,26 @@ $ErrorActionPreference = "Stop"
 $Juuri = Split-Path -Parent $PSScriptRoot
 Set-Location $Juuri
 
+# Loki jokaisesta ajosta: kaynnistys.log projektin juuressa (gitignoressa).
+try { Start-Transcript -Path (Join-Path $Juuri "kaynnistys.log") -Force | Out-Null } catch {}
+
+# Odottamaton virhe ei saa sulkea ikkunaa hiljaa.
+trap {
+    Write-Host ""
+    Write-Host "ODOTTAMATON VIRHE: $_" -ForegroundColor Red
+    Write-Host "Rivi: $($_.InvocationInfo.ScriptLineNumber)  Loki: kaynnistys.log"
+    try { Stop-Transcript | Out-Null } catch {}
+    Read-Host "Paina Enter sulkeaksesi"
+    exit 1
+}
+
 function Vaihe($teksti) { Write-Host ""; Write-Host "==> $teksti" -ForegroundColor Cyan }
 function Ok($teksti) { Write-Host "    $teksti" -ForegroundColor Green }
 function Virhe($teksti) {
     Write-Host ""
     Write-Host "VIRHE: $teksti" -ForegroundColor Red
     Write-Host ""
+    try { Stop-Transcript | Out-Null } catch {}
     Read-Host "Paina Enter sulkeaksesi"
     exit 1
 }
@@ -27,15 +41,16 @@ function PorttiKaytossa($portti) {
     return [bool]$yhteys
 }
 
-function OdotaUrl($url, $sekunnit) {
+function OdotaPortti($portti, $sekunnit) {
+    # Ei HTTP-kyselyä: Windows PowerShell 5.1:n Invoke-WebRequest voi
+    # kulkea järjestelmän välityspalvelimen kautta tai jumittua localhostin
+    # IPv6/IPv4-valintaan. Kuunteleva portti riittää merkiksi siitä, että
+    # palvelin on ylhäällä (Vite kuuntelee ::1:ssä, uvicorn 127.0.0.1:ssä).
     $loppu = (Get-Date).AddSeconds($sekunnit)
     while ((Get-Date) -lt $loppu) {
-        try {
-            Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 2 | Out-Null
-            return $true
-        } catch {
-            Start-Sleep -Seconds 1
-        }
+        if (PorttiKaytossa $portti) { return $true }
+        Start-Sleep -Seconds 1
+        Write-Host "." -NoNewline
     }
     return $false
 }
@@ -102,9 +117,11 @@ if (PorttiKaytossa 8000) {
 } else {
     $komento = "`$host.UI.RawUI.WindowTitle = 'AJURI backend'; Set-Location '$Juuri'; & '$Python' -m uvicorn app.main:app --reload"
     Start-Process powershell -ArgumentList "-NoExit", "-Command", $komento
-    if (-not (OdotaUrl "http://localhost:8000/openapi.json" 60)) {
-        Virhe "Backend ei vastannut minuutissa. Katso virhe 'AJURI backend' -ikkunasta."
+    if (-not (OdotaPortti 8000 180)) {
+        Write-Host ""
+        Virhe "Backend ei käynnistynyt 3 minuutissa. Katso virhe 'AJURI backend' -ikkunasta."
     }
+    Write-Host ""
     Ok "Backend vastaa"
 }
 
@@ -126,9 +143,11 @@ if (PorttiKaytossa 5173) {
     # (CORS sallii vain 5173, muuten tulisi "Failed to fetch").
     $komento = "`$host.UI.RawUI.WindowTitle = 'AJURI frontti'; Set-Location '$Frontend'; npm run dev -- --strictPort"
     Start-Process powershell -ArgumentList "-NoExit", "-Command", $komento
-    if (-not (OdotaUrl "http://localhost:5173" 60)) {
-        Virhe "Frontti ei vastannut minuutissa. Katso virhe 'AJURI frontti' -ikkunasta."
+    if (-not (OdotaPortti 5173 180)) {
+        Write-Host ""
+        Virhe "Frontti ei käynnistynyt 3 minuutissa. Katso virhe 'AJURI frontti' -ikkunasta."
     }
+    Write-Host ""
     Ok "Frontti vastaa"
 }
 
@@ -141,4 +160,5 @@ Write-Host "  Sovellus: http://localhost:5173"
 Write-Host "  API:      http://localhost:8000/docs"
 Write-Host "  Sammutus: tuplaklikkaa 'Sammuta AJURI.cmd'"
 Write-Host ""
+try { Stop-Transcript | Out-Null } catch {}
 Start-Sleep -Seconds 5
