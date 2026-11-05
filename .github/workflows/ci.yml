@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend-testit (pytest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: pytest -q
+
+  docker:
+    name: Docker Compose + PostgreSQL-migraatiot
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: .env esimerkistä
+        run: cp .env.example .env
+      - name: Buildaa ja käynnistä
+        run: docker compose up -d --build --wait
+      - name: Migraatiot oikeaan PostgreSQLiin
+        run: docker compose exec -T app alembic upgrade head
+      - name: Malli ja migraatiot synkassa
+        run: docker compose exec -T app alembic check
+      - name: API vastaa
+        run: |
+          for i in $(seq 1 30); do
+            curl -fsS http://localhost:8000/openapi.json > /dev/null && exit 0
+            sleep 2
+          done
+          docker compose logs app
+          exit 1
+      - name: Lokit virhetilanteessa
+        if: failure()
+        run: docker compose logs
+      - name: Siivous
+        if: always()
+        run: docker compose down -v
+
+  frontend:
+    name: Frontend (lint + build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
