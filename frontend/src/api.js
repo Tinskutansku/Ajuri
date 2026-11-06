@@ -131,3 +131,9 @@ export function paivitaPaivaKuski(id, data) {
 export function poistaPaivaKuski(id) {
   return pyyda(`/paiva-kuskit/${id}`, { method: "DELETE" });
 }
+
+// --- Osoite-ehdotukset (Photon backendin kautta) ---
+
+export function ehdotaOsoitteita(q, signal) {
+  return pyyda(`/osoitteet/ehdota?q=${encodeURIComponent(q)}`, { signal });
+}

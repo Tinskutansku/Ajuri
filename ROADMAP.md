@@ -39,21 +39,14 @@ istunnon suunnitelma, 961 riviä).
 
 ## Vaihe H — Osoitteen automaattitäydennys
 
-### H1 `[ ]` Backend: osoite-ehdotukset
-- `GeocoderClient`-rajapintaan metodi `ehdota(q, raja=5)`
-- `GET /geokoodaa/ehdota?q=...` → lista `{nimi, lat, lon}`
-- `FakeGeocoder` saa vastaavan metodin, testit ilman verkkoa
-- Huom. tämä lisää abstraktiin rajapintaan metodin, mikä on
-  esihyväksytty tässä kohdassa
-- **Valmis kun:** testit endpointille (tulokset, tyhjä haku, liian
-  lyhyt haku → 422)
-
-### H2 `[ ]` Frontend: osoitekenttä ehdotuksilla
-- Haku vasta ~500 ms kirjoitustauon ja vähintään 5 merkin jälkeen
-  (Nominatimin 1 kutsu/s)
-- Valinta täyttää osoitteen ja koordinaatit
-- Käyttöön Rekisterissä (henkilöt, kuskit) ja Pohjatiedoissa (lokaatiot)
-- **Valmis kun:** lint + build läpi, debounce näkyy koodissa selvästi
+### H1+H2 `[PR #8]` Osoite-ehdotukset kirjoittaessa
+Tehty yhdessä PR:ssä Tanjan ollessa paikalla 6.11. Nominatimin käyttöehdot
+kieltävät automaattitäydennyksen, joten Tanja valitsi Photonin
+(`app/services/osoite_ehdottaja.py`, oma `OsoiteEhdottaja`-abstraktio).
+- `GET /osoitteet/ehdota?q=...` → lista `{nimi, lat, lon}`
+- `frontend/src/OsoiteKentta.jsx` käytössä Rekisterissä (henkilöt, kuskit)
+  ja Pohjatiedoissa (uusi lokaatio)
+- Jatkossa: Tehtävät-välilehden vapaa osoite (G2, PR #6) samaan kenttään
 
 ## Vaihe I — Tulostusversio ja "kuski pois pelistä"
 
