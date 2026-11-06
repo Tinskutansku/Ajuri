@@ -20,3 +20,21 @@ def kuormittava_ratkaise(*args, **kwargs):
     while time.monotonic() < loppu:
         sum(range(20_000_000))  # ~0.2-0.5 s yhtenä GIL:n pitona
     return ratkaise(*args, **kwargs)
+
+
+def kuormittava_analyysi(*args, **kwargs):
+    """Sama GIL:n pito kuin kuormittava_ratkaise, sijoittamattomien
+    syyanalyysille (6.11.2026: analyysi ajettiin vielä pääprosessissa ja
+    jumitti backendin minuuteiksi)."""
+    from app.services.optimoija import analysoi_sijoittamattomat
+
+    loppu = time.monotonic() + 2.0
+    while time.monotonic() < loppu:
+        sum(range(20_000_000))
+    return analysoi_sijoittamattomat(*args, **kwargs)
+
+
+def tallenna_analyysin_aikaraja(sijoittamatta_id, tehtavat, kuskit, ajoaika, parametrit):
+    """Palauttaa saamansa aikarajan vastauksen kautta (työprosessista ei
+    voi kirjoittaa testin muuttujiin)."""
+    return [{"tehtava_id": -1, "nimi": f"aikaraja={parametrit.aikaraja_s}", "syy": "aikaikkuna", "selite": "testi"}]
