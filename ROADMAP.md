@@ -95,3 +95,25 @@ kieltävät automaattitäydennyksen, joten Tanja valitsi Photonin
   - Pidä `pikkuLabel`-tyyli, jota Pohjatiedot jo käyttää (NIMI, OSOITE).
   - **Valmis kun:** lint + build läpi, ja PR:ssä on kuvakaappaus
     Rekisteristä sekä leveänä että mobiilileveydellä
+- `[ ]` **Optimointi-välilehti muistaa tuloksen (Tanjan toive 6.11.)**
+  Nyt sivun päivitys kesken laskennan hukkaa tuloksen näkyvistä, vaikka
+  optimointi valmistuu backendissä ja tallentuu uudeksi ajolistaversioksi.
+  - Kun päivä valitaan, näytä sen viimeisin tallennettu ajolista heti
+    (olemassa olevat versio-endpointit, ks. `app/routers/versiot.py`)
+  - Jos päivälle on optimointi kesken (`app/services/laskenta.py`:n
+    `paivan_lukko`), näytä "Laskenta käynnissä…" ja hae tulos, kun se valmistuu
+    (esim. kevyt tilaendpoint `GET /paivat/{id}/optimointi` + kysely 3 s välein)
+  - Roolisuodatus pysyy samana kuin optimointivastauksessa (KUSKI ei näe
+    kustannuksia). Jos tämä vaatii muutoksia `response_filter.py`:hin, se on poikkeama.
+  - **Valmis kun:** testi tilaendpointille (käynnissä / ei käynnissä), lint +
+    build läpi, ja PR:ssä ohje: Optimoi → päivitä sivu → tulos ilmestyy
+- `[ ]` **Seed: noudot ja paluut generoiduiksi**
+  `app/seed.py` luo seed-päivän noudot ja paluut käsin lisättyinä
+  (`generoitu=false`), joten "Generoi tehtävät" lisää ne toiseen kertaan.
+  Tuplat jäävät sijoittamatta ja hidastavat optimointia (30 sijoittamatonta 6.11.).
+  - Merkitse seedin generoinnin kaltaiset tehtävät `generoitu=true`.
+    Erikoistehtävät (esim. lounashaku, lentokenttä) jäävät käsin lisätyiksi.
+  - Seed on idempotentti, eli olemassa olevalle kannalle ajettuna se ei saa
+    luoda tuplia. Kerro PR:ssä, korjaako uudelleenajo vanhan kannan vai
+    tarvitaanko tyhjä kanta.
+  - **Valmis kun:** testi, jossa seed + generointi ei tuota tuplanoutoja
