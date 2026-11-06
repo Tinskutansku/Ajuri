@@ -15,6 +15,12 @@ Demodatan kanssa: aja projektin juuressa PowerShellissä
 Pikakuvake työpöydälle: hiiren oikea `Käynnistä AJURI.cmd` →
 *Näytä lisää vaihtoehtoja* → *Lähetä* → *Työpöytä (luo pikakuvake)*.
 
+Backend- ja frontti-ikkunoissa Windowsin QuickEdit-valintatila on pois
+päältä: tavallisessa PowerShell-ikkunassa jo yksi klikkaus pysäyttää
+palvelimen (vasempaan alakulmaan ilmestyy valkoinen palkki), kunnes
+painaa Esc. Jos käynnistät palvelimen käsin ja se jumittuu, paina
+ikkunassa Esc.
+
 Jos jokin vaihe epäonnistuu, ikkuna jää auki ja kertoo mikä. Alla olevat
 käsin tehtävät vaiheet ovat sama asia osiin purettuna vianetsintää varten.
 

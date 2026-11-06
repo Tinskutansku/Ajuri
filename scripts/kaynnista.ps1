@@ -75,6 +75,19 @@ function OdotaPortti($portti, $sekunnit) {
     return $false
 }
 
+function AvaaIkkuna($otsikko, $kansio, $komento) {
+    # scripts/ikkuna.ps1 kytkee konsolin QuickEdit-tilan pois: muuten
+    # ikkunan klikkaaminen pysäyttää palvelimen (ks. ikkuna.ps1).
+    $ikkuna = Join-Path $PSScriptRoot "ikkuna.ps1"
+    Start-Process powershell -ArgumentList @(
+        "-NoExit", "-NoProfile", "-ExecutionPolicy", "Bypass",
+        "-File", "`"$ikkuna`"",
+        "-Otsikko", "`"$otsikko`"",
+        "-Kansio", "`"$kansio`"",
+        "-Komento", "`"$($komento -replace '"', '\"')`""
+    )
+}
+
 function DockerValmis {
     # Docker kirjoittaa stderriin kun moottori ei ole käynnissä; ei haluta
     # että $ErrorActionPreference = Stop kaataa skriptin siihen.
@@ -135,8 +148,7 @@ Vaihe "Backend (http://localhost:8000)"
 if (PorttiKaytossa 8000) {
     Ok "Portti 8000 on jo käytössä - backend on ilmeisesti jo päällä, ei käynnistetä uudelleen"
 } else {
-    $komento = "`$host.UI.RawUI.WindowTitle = 'AJURI backend'; Set-Location '$Juuri'; & '$Python' -m uvicorn app.main:app --reload"
-    Start-Process powershell -ArgumentList "-NoExit", "-Command", $komento
+    AvaaIkkuna "AJURI backend" $Juuri "& '$Python' -m uvicorn app.main:app --reload"
     if (-not (OdotaPortti 8000 180)) {
         Write-Host ""
         Virhe "Backend ei käynnistynyt 3 minuutissa. Katso virhe 'AJURI backend' -ikkunasta."
@@ -161,8 +173,7 @@ if (PorttiKaytossa 5173) {
 } else {
     # --strictPort: jos 5173 olisi varattu, Vite ei hyppää toiseen porttiin
     # (CORS sallii vain 5173, muuten tulisi "Failed to fetch").
-    $komento = "`$host.UI.RawUI.WindowTitle = 'AJURI frontti'; Set-Location '$Frontend'; npm run dev -- --strictPort"
-    Start-Process powershell -ArgumentList "-NoExit", "-Command", $komento
+    AvaaIkkuna "AJURI frontti" $Frontend "npm run dev -- --strictPort"
     if (-not (OdotaPortti 5173 180)) {
         Write-Host ""
         Virhe "Frontti ei käynnistynyt 3 minuutissa. Katso virhe 'AJURI frontti' -ikkunasta."
