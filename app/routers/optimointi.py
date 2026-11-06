@@ -314,8 +314,10 @@ async def optimoi_paiva(
     # OR-Tools on synkroninen ja CPU-sidottu (aikaraja_s sekuntia per
     # ratkaisu). Suoraan async-funktiossa ajettuna se pysäyttäisi koko
     # backendin tapahtumasilmukan: muut välilehdet eivät saisi vastausta
-    # (näkyi "ei kuvauspäiviä" -tilana). Ajetaan säiepoolissa; OR-Tools
-    # vapauttaa GIL:n ratkaistessaan, joten muut pyynnöt etenevät.
+    # (näkyi "ei kuvauspäiviä" -tilana). Ajetaan säiepoolissa. OR-Toolsin
+    # transit-callbackit ovat Pythonia, joten ratkaisu pitää GIL:ää suuren
+    # osan ajasta, mutta Python vaihtaa säiettä ~5 ms välein, joten muut
+    # (kevyet) pyynnöt saavat silti vastauksen.
     tulos = await asyncio.to_thread(ratkaise, tehtavat, kuskit, ajoaika, parametrit)
 
     skenaariot_data = None

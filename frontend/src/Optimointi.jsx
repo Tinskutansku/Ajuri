@@ -130,6 +130,11 @@ export default function Optimointi() {
       {laskee && (
         <div style={{ textAlign: "center", padding: "60px 20px", fontFamily: "'Archivo',sans-serif", color: C.olive, fontWeight: 600 }}>
           Lasketaan… OR-Tools + OSRM voivat viedä hetken.
+          <div style={{ fontWeight: 400, fontSize: 13, marginTop: 8 }}>
+            Mukana skenaariovertailu (montako kuskia kannattaa ottaa): yksi ratkaisu jokaiselle kuskimäärälle,
+            joten tämä vie noin 8 s + 10 s jokaista päivän kuskia kohden (5 kuskilla noin minuutin). Muut
+            välilehdet toimivat sillä välin.
+          </div>
         </div>
       )}
     </>
