@@ -131,3 +131,22 @@ export function paivitaPaivaKuski(id, data) {
 export function poistaPaivaKuski(id) {
   return pyyda(`/paiva-kuskit/${id}`, { method: "DELETE" });
 }
+
+// --- Tehtävät: generointi ja käsin lisätyt ---
+
+export function haeTehtavat(paivaId) {
+  return pyyda(`/tehtavat?paiva_id=${paivaId}`);
+}
+export function luoTehtava(data) {
+  return pyyda("/tehtavat", json("POST", data));
+}
+export function paivitaTehtava(id, data) {
+  return pyyda(`/tehtavat/${id}`, json("PUT", data));
+}
+export function poistaTehtava(id) {
+  return pyyda(`/tehtavat/${id}`, { method: "DELETE" });
+}
+// Vastaus: { tehtavat: [...], varoitus: string | null }
+export function generoiTehtavat(paivaId) {
+  return pyyda(`/paivat/${paivaId}/generoi-tehtavat`, { method: "POST" });
+}

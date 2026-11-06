@@ -2,11 +2,13 @@ import { useState } from "react";
 import { C, FONTS } from "./ui.jsx";
 import Rekisteri from "./Rekisteri.jsx";
 import Pohjatiedot from "./Pohjatiedot.jsx";
+import Tehtavat from "./Tehtavat.jsx";
 import Optimointi from "./Optimointi.jsx";
 
 const TABS = [
   ["rekisteri", "☰ Rekisteri"],
   ["pohjatiedot", "◆ Pohjatiedot"],
+  ["tehtavat", "▲ Tehtävät"],
   ["optimointi", "★ Optimointi"],
 ];
 
@@ -59,6 +61,7 @@ export default function App() {
 
         {tab === "rekisteri" && <Rekisteri />}
         {tab === "pohjatiedot" && <Pohjatiedot />}
+        {tab === "tehtavat" && <Tehtavat />}
         {tab === "optimointi" && <Optimointi />}
       </main>
     </div>
