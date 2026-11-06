@@ -37,8 +37,28 @@ function Virhe($teksti) {
 }
 
 function PorttiKaytossa($portti) {
-    $yhteys = Get-NetTCPConnection -LocalPort $portti -State Listen -ErrorAction SilentlyContinue
-    return [bool]$yhteys
+    # Ei Get-NetTCPConnectionia: se nojaa WMI:hin, joka voi olla rikki tai
+    # hidas, ja silloin portti näyttää aina vapaalta. .NET lukee saman
+    # tiedon suoraan käyttöjärjestelmältä.
+    try {
+        $kuuntelijat = [System.Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties().GetActiveTcpListeners()
+        if ($kuuntelijat | Where-Object { $_.Port -eq $portti }) { return $true }
+    } catch {}
+    # Varmistus: yritetään yhdistää suoraan (uvicorn 127.0.0.1, Vite ::1).
+    foreach ($osoite in @("127.0.0.1", "::1")) {
+        $tcp = $null
+        try {
+            $perhe = [System.Net.Sockets.AddressFamily]::InterNetwork
+            if ($osoite -eq "::1") { $perhe = [System.Net.Sockets.AddressFamily]::InterNetworkV6 }
+            $tcp = New-Object System.Net.Sockets.TcpClient -ArgumentList $perhe
+            $yritys = $tcp.BeginConnect($osoite, $portti, $null, $null)
+            if ($yritys.AsyncWaitHandle.WaitOne(500) -and $tcp.Connected) { return $true }
+        } catch {
+        } finally {
+            if ($tcp) { $tcp.Close() }
+        }
+    }
+    return $false
 }
 
 function OdotaPortti($portti, $sekunnit) {
