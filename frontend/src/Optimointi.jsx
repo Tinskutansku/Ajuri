@@ -6,6 +6,7 @@ import Tulos from "./Tulos.jsx";
 export default function Optimointi() {
   const [paivat, setPaivat] = useState([]);
   const [paivatVirhe, setPaivatVirhe] = useState(null);
+  const [paivatLadattu, setPaivatLadattu] = useState(false);
   const [valittuId, setValittuId] = useState("");
 
   const [tulos, setTulos] = useState(null);
@@ -18,7 +19,8 @@ export default function Optimointi() {
         setPaivat(data);
         if (data.length) setValittuId(String(data[0].id));
       })
-      .catch((e) => setPaivatVirhe(e.message));
+      .catch((e) => setPaivatVirhe(e.message))
+      .finally(() => setPaivatLadattu(true));
   }, []);
 
   const valitsePaiva = (id) => {
@@ -52,7 +54,10 @@ export default function Optimointi() {
             Kuvauspäivien haku epäonnistui: {paivatVirhe}
           </p>
         )}
-        {!paivatVirhe && !paivat.length && (
+        {!paivatLadattu && (
+          <p style={{ fontFamily: "'Archivo',sans-serif", fontSize: 13, color: C.olive }}>Haetaan kuvauspäiviä…</p>
+        )}
+        {paivatLadattu && !paivatVirhe && !paivat.length && (
           <p style={{ fontFamily: "'Archivo',sans-serif", fontSize: 13, color: C.olive }}>
             Ei kuvauspäiviä. Aja esim. <code>python -m app.seed</code> backendissä.
           </p>
@@ -125,6 +130,11 @@ export default function Optimointi() {
       {laskee && (
         <div style={{ textAlign: "center", padding: "60px 20px", fontFamily: "'Archivo',sans-serif", color: C.olive, fontWeight: 600 }}>
           Lasketaan… OR-Tools + OSRM voivat viedä hetken.
+          <div style={{ fontWeight: 400, fontSize: 13, marginTop: 8 }}>
+            Mukana skenaariovertailu (montako kuskia kannattaa ottaa): yksi ratkaisu jokaiselle kuskimäärälle,
+            joten tämä vie noin 8 s + 10 s jokaista päivän kuskia kohden (5 kuskilla noin minuutin). Muut
+            välilehdet toimivat sillä välin.
+          </div>
         </div>
       )}
     </>

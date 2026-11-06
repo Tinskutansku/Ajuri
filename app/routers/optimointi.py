@@ -4,6 +4,7 @@ Lukee päivän datan tietokannasta, ratkaisee reitit OR-Toolsilla
 (app.services.optimoija) ja tallentaa tuloksen uutena ajolista_versio-versiona.
 """
 
+import asyncio
 from datetime import time
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -310,11 +311,18 @@ async def optimoi_paiva(
         max_kyytiaika_lisa_min=pyynto.max_kyytiaika_lisa_min,
     )
 
-    tulos = ratkaise(tehtavat, kuskit, ajoaika, parametrit)
+    # OR-Tools on synkroninen ja CPU-sidottu (aikaraja_s sekuntia per
+    # ratkaisu). Suoraan async-funktiossa ajettuna se pysäyttäisi koko
+    # backendin tapahtumasilmukan: muut välilehdet eivät saisi vastausta
+    # (näkyi "ei kuvauspäiviä" -tilana). Ajetaan säiepoolissa. OR-Toolsin
+    # transit-callbackit ovat Pythonia, joten ratkaisu pitää GIL:ää suuren
+    # osan ajasta, mutta Python vaihtaa säiettä ~5 ms välein, joten muut
+    # (kevyet) pyynnöt saavat silti vastauksen.
+    tulos = await asyncio.to_thread(ratkaise, tehtavat, kuskit, ajoaika, parametrit)
 
     skenaariot_data = None
     if pyynto.skenaariot:
-        skenaariot_data = vertaile_skenaarioita(tehtavat, kuskit, ajoaika, parametrit)
+        skenaariot_data = await asyncio.to_thread(vertaile_skenaarioita, tehtavat, kuskit, ajoaika, parametrit)
 
     # --- Yhdistä lukitut + uudet keikat ---
     persistoinnin_lisatiedot: dict[int, tuple[bool, bool]] = {}  # tehtava_id -> (kasin_siirretty, kuitattu)
