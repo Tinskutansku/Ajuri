@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.exc import InterfaceError, OperationalError
 
 from app.config import settings
+from app.services.laskenta import sammuta_pooli
 from app.routers import (
     ajoneuvo,
     henkilo,
@@ -27,6 +28,8 @@ from app.routers import (
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Ajolista API")
+# Optimoinnin työprosessit suljetaan sovelluksen sammuessa (myös --reload).
+app.router.on_shutdown.append(sammuta_pooli)
 
 app.add_middleware(
     CORSMiddleware,
