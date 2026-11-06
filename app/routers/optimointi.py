@@ -5,6 +5,7 @@ Lukee päivän datan tietokannasta, ratkaisee reitit OR-Toolsilla
 """
 
 import asyncio
+from dataclasses import replace
 from datetime import time
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -47,6 +48,10 @@ from app.services.optimoija import (
     vertaile_skenaarioita,
 )
 from app.services.router_client import RouterClient, get_router_client
+
+# Sijoittamattomien syyanalyysin aikaraja per yhden tehtävän ratkaisu, ks.
+# _optimoi_paiva.
+ANALYYSIN_AIKARAJA_S = 1
 
 router = APIRouter(tags=["optimointi"])
 
@@ -333,16 +338,34 @@ async def _optimoi_paiva(
     )
 
     # OR-Tools ajetaan erillisessä prosessissa (app/services/laskenta.py):
-    # sen C++-ratkaisija pitää GIL:ää koko ratkaisun ajan, joten säikeessä
-    # backendin muut pyynnöt jumittuivat minuutin optimoinnin ajaksi. Pääratkaisu ja skenaariovertailu ajetaan rinnakkain kahdessa
-    # työprosessissa, jolloin kokonaisaika on pidemmän kesto eikä summa.
+    # sen C++-ratkaisija pitää GIL:ää koko ratkaisun ajan, joten samassa
+    # prosessissa backendin muut pyynnöt jumittuivat optimoinnin ajaksi.
+    #
+    # Kolme vaihetta: pääratkaisu, sen jälkeen sijoittamatta jääneiden
+    # syyanalyysi (tarvitsee pääratkaisun tuloksen), ja rinnakkain näiden
+    # kanssa skenaariovertailu.
+    #
+    # Syyanalyysi ratkaisee jokaiselle sijoittamattomalle tehtävälle
+    # yhden tehtävän + yhden kuskin ongelman per kuski ("ehtisikö tämä
+    # kuski edes yksinään?"). OR-Tools käyttää aikarajan aina loppuun, joten
+    # täydellä aikarajalla (8 s) 10 sijoittamatonta x 5 kuskia veisi
+    # minuutteja. Yhden tehtävän käypyyteen 1 s riittää reilusti.
+    analyysin_parametrit = replace(parametrit, aikaraja_s=ANALYYSIN_AIKARAJA_S)
+
+    async def ratkaise_ja_analysoi():
+        tulos = await aja_prosessissa(ratkaise, tehtavat, kuskit, ajoaika, parametrit)
+        sijoittamatta = await aja_prosessissa(
+            analysoi_sijoittamattomat, tulos.sijoittamatta, tehtavat, kuskit, ajoaika, analyysin_parametrit
+        )
+        return tulos, sijoittamatta
+
     if pyynto.skenaariot:
-        tulos, skenaariot_data = await asyncio.gather(
-            aja_prosessissa(ratkaise, tehtavat, kuskit, ajoaika, parametrit),
+        (tulos, sijoittamatta_analyysi), skenaariot_data = await asyncio.gather(
+            ratkaise_ja_analysoi(),
             aja_prosessissa(vertaile_skenaarioita, tehtavat, kuskit, ajoaika, parametrit),
         )
     else:
-        tulos = await aja_prosessissa(ratkaise, tehtavat, kuskit, ajoaika, parametrit)
+        tulos, sijoittamatta_analyysi = await ratkaise_ja_analysoi()
         skenaariot_data = None
 
     # --- Yhdistä lukitut + uudet keikat ---
@@ -434,10 +457,7 @@ async def _optimoi_paiva(
         for y in yhteenveto
     ]
 
-    sijoittamatta_vastaus = [
-        Sijoittamaton(**s)
-        for s in analysoi_sijoittamattomat(tulos.sijoittamatta, tehtavat, kuskit, ajoaika, parametrit)
-    ]
+    sijoittamatta_vastaus = [Sijoittamaton(**s) for s in sijoittamatta_analyysi]
 
     skenaariot_vastaus = (
         [Skenaario(**s) for s in skenaariot_data] if skenaariot_data is not None else None
