@@ -5,12 +5,20 @@ $Juuri = Split-Path -Parent $PSScriptRoot
 Set-Location $Juuri
 
 function Sammuta($portti, $nimi) {
-    $yhteydet = Get-NetTCPConnection -LocalPort $portti -State Listen -ErrorAction SilentlyContinue
-    if (-not $yhteydet) {
+    # netstat -ano toimii ilman WMI:tä (Get-NetTCPConnection voi olla rikki).
+    $pidit = netstat -ano -p TCP | Select-String -Pattern "LISTENING" |
+        ForEach-Object { $osat = ($_.Line.Trim() -split "\s+"); if ($osat[1] -match ":$portti$") { $osat[-1] } } |
+        Select-Object -Unique
+    if (-not $pidit) {
+        $pidit = netstat -ano -p TCPv6 | Select-String -Pattern "LISTENING" |
+            ForEach-Object { $osat = ($_.Line.Trim() -split "\s+"); if ($osat[1] -match ":$portti$") { $osat[-1] } } |
+            Select-Object -Unique
+    }
+    if (-not $pidit) {
         Write-Host "    $nimi ei ollut käynnissä"
         return
     }
-    foreach ($pid_ in ($yhteydet | Select-Object -ExpandProperty OwningProcess -Unique)) {
+    foreach ($pid_ in $pidit) {
         # uvicorn --reload ja npm käynnistävät lapsiprosesseja; /T sulkee
         # koko puun, jotta portti vapautuu varmasti.
         taskkill /PID $pid_ /T /F *> $null
