@@ -1,15 +1,39 @@
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
-async function pyyda(polku, options) {
-  const vastaus = await fetch(`${API_BASE}${polku}`, {
-    headers: { "Content-Type": "application/json" },
-    ...options,
-  });
+// Pyynnön aikaraja: jumiutunut backend näkyy selkeänä virheenä eikä
+// ikuisena latauksena tai harhaanjohtavana "ei kuvauspäiviä" -tilana.
+const OLETUS_AIKARAJA_MS = 20000;
+
+async function pyyda(polku, options = {}) {
+  const { aikarajaMs = OLETUS_AIKARAJA_MS, signal: kutsujanSignal, ...loput } = options;
+  const ohjain = new AbortController();
+  const ajastin = setTimeout(() => ohjain.abort("aikaraja"), aikarajaMs);
+  const peru = () => ohjain.abort(kutsujanSignal.reason);
+  kutsujanSignal?.addEventListener("abort", peru);
+  let vastaus;
+  try {
+    vastaus = await fetch(`${API_BASE}${polku}`, {
+      headers: { "Content-Type": "application/json" },
+      ...loput,
+      signal: ohjain.signal,
+    });
+  } catch (e) {
+    if (ohjain.signal.reason === "aikaraja") {
+      throw new Error(
+        `Backend ei vastannut ${Math.round(aikarajaMs / 1000)} sekunnissa. Onko se käynnissä? (katso AJURI backend -ikkuna)`
+      );
+    }
+    if (e.name === "AbortError") throw e; // kutsuja perui itse (esim. osoitehaku)
+    throw new Error("Backendiin ei saatu yhteyttä. Onko se käynnissä? (katso AJURI backend -ikkuna)");
+  } finally {
+    clearTimeout(ajastin);
+    kutsujanSignal?.removeEventListener("abort", peru);
+  }
   if (!vastaus.ok) {
     let viesti = `${vastaus.status} ${vastaus.statusText}`;
     try {
       const data = await vastaus.json();
-      if (data.detail) viesti = data.detail;
+      if (data.detail) viesti = typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail);
     } catch {
       // vastauksessa ei ollut JSON-runkoa
     }
@@ -29,6 +53,8 @@ export function optimoiPaiva(paivaId, pyynto = { aikaraja_s: 8 }) {
   return pyyda(`/paivat/${paivaId}/optimoi`, {
     method: "POST",
     body: JSON.stringify(pyynto),
+    // ajoaikojen haku OSRM:stä + ratkaisu voi kestää hitaalla yhteydellä
+    aikarajaMs: 120000,
   });
 }
 
@@ -130,6 +156,25 @@ export function paivitaPaivaKuski(id, data) {
 }
 export function poistaPaivaKuski(id) {
   return pyyda(`/paiva-kuskit/${id}`, { method: "DELETE" });
+}
+
+// --- Tehtävät: generointi ja käsin lisätyt ---
+
+export function haeTehtavat(paivaId) {
+  return pyyda(`/tehtavat?paiva_id=${paivaId}`);
+}
+export function luoTehtava(data) {
+  return pyyda("/tehtavat", json("POST", data));
+}
+export function paivitaTehtava(id, data) {
+  return pyyda(`/tehtavat/${id}`, json("PUT", data));
+}
+export function poistaTehtava(id) {
+  return pyyda(`/tehtavat/${id}`, { method: "DELETE" });
+}
+// Vastaus: { tehtavat: [...], varoitus: string | null }
+export function generoiTehtavat(paivaId) {
+  return pyyda(`/paivat/${paivaId}/generoi-tehtavat`, { method: "POST" });
 }
 
 // --- Osoite-ehdotukset (Photon backendin kautta) ---

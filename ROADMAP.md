@@ -14,7 +14,7 @@ Tilat
 
 ## Vaihe G — Pohjatiedot- ja Tehtävät-välilehdet
 
-### G1 `[PR #2]` Pohjatiedot-välilehti luonnoksesta
+### G1 `[x]` Pohjatiedot-välilehti luonnoksesta
 Luonnos oli `docs/luonnokset/Pohjatiedot.jsx`, nyt `frontend/src/Pohjatiedot.jsx` (edellisen
 istunnon suunnitelma, 961 riviä).
 - Siirrä `frontend/src/Pohjatiedot.jsx`:ksi ja lisää välilehti `App.jsx`:n
@@ -28,7 +28,7 @@ istunnon suunnitelma, 961 riviä).
   PR:ssä on lista siitä mitä luonnokseen piti muuttaa ja miten
   välilehteä kokeillaan seed-datalla
 
-### G2 `[ ]` Tehtävät-välilehti
+### G2 `[x]` Tehtävät-välilehti
 - Päivän valinta, `POST /paivat/{id}/generoi-tehtavat` -nappi
 - Generoidut ja käsin lisätyt erotettuina (badge riville)
 - Tehtävän lisäys, muokkaus ja poisto käsin (lounashaku, kortit,
@@ -77,7 +77,7 @@ kieltävät automaattitäydennyksen, joten Tanja valitsi Photonin
 
 ## Pienet (voi tehdä kun iso kohta on odottamassa)
 
-- `[PR #3]` Tietokantayhteyden virhe → 503 raa'an tracebackin sijaan (testi)
-- `[PR #3]` `GET /` → tervetulovastaus 404:n sijaan (testi)
-- `[PR #3]` pytest-asyncio-varoitus pois: `asyncio_default_fixture_loop_scope`
+- `[x]` Tietokantayhteyden virhe → 503 raa'an tracebackin sijaan (testi)
+- `[x]` `GET /` → tervetulovastaus 404:n sijaan (testi)
+- `[x]` pytest-asyncio-varoitus pois: `asyncio_default_fixture_loop_scope`
   `pytest.ini`:hin

@@ -9,9 +9,10 @@ testattuna (vaiheet A–F). Lisäksi `app/seed.py` — idempotentti
 seed-skripti joka luo realistisen demo-kuvauspäivän oikeilla
 pääkaupunkiseudun koordinaateilla, ainoa tapa saada dataa softaan ilman
 käsityötä — ja `frontend/`-hakemistossa Vite + React -frontti, jossa on
-tällä hetkellä kaksi välilehteä: **Rekisteri** (henkilöiden ja kuskien
-CRUD, poistodialogi näyttää käyttövaroituksen) ja **Optimointi** (valitse
-päivä, optimoi, katso tulos per kuski).
+neljä välilehteä: **Rekisteri** (henkilöiden ja kuskien CRUD,
+poistodialogi näyttää käyttövaroituksen), **Pohjatiedot** (kuvauspäivän
+kokoaminen), **Tehtävät** (generointi ja käsin lisätyt erikoiskeikat) ja
+**Optimointi** (valitse päivä, optimoi, katso tulos per kuski).
 
 Backend on kokonaisuudessaan tehty. Jäljellä oleva työ (vaiheet G–J) on
 käyttöliittymää.
@@ -177,7 +178,7 @@ kuin "tehtävät soft, muut hard".
   (422) — muuten API sallisi hiljaisen ristiriidan jota olisi vaikea
   jäljittää (poistettu rivi katoaisi optimoinnista/generoinnista selittämättä)
 
-## Vaihe G — Pohjatiedot- ja Tehtävät-välilehdet
+## Vaihe G — Pohjatiedot- ja Tehtävät-välilehdet (valmis)
 
 Tämän jälkeen koko putki toimii ilman Swaggeria: henkilöt sisään →
 päivä kasaan → generoi → optimoi → ajolista ulos.
