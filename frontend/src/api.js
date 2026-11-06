@@ -176,3 +176,9 @@ export function poistaTehtava(id) {
 export function generoiTehtavat(paivaId) {
   return pyyda(`/paivat/${paivaId}/generoi-tehtavat`, { method: "POST" });
 }
+
+// --- Osoite-ehdotukset (Photon backendin kautta) ---
+
+export function ehdotaOsoitteita(q, signal) {
+  return pyyda(`/osoitteet/ehdota?q=${encodeURIComponent(q)}`, { signal });
+}

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { C, Kortti, Nappi, Kentta, Ruksi, Badge, riviTyyli, pikkuLabel, vihje } from "./ui.jsx";
 import * as api from "./api.js";
+import OsoiteKentta from "./OsoiteKentta.jsx";
 
 /* Pohjatiedot — kuvauspäivän kokoaminen: päivän ajat, lokaatiot,
    ketkä ovat mukana ja ketkä kuskit ajavat. Kaikki rivit ovat
@@ -304,6 +305,9 @@ export default function Pohjatiedot() {
         tuotanto_id: Number(tuotantoId),
         nimi: uusiLokaatio.nimi.trim(),
         osoite: uusiLokaatio.osoite.trim() || null,
+        // Ehdotuksesta valittu osoite tuo koordinaatit mukanaan; käsin
+        // kirjoitettu geokoodataan backendissä.
+        ...(uusiLokaatio.lat != null ? { lat: uusiLokaatio.lat, lon: uusiLokaatio.lon } : {}),
       });
       setLokaatiot((ls) => [...ls, l]);
       const jarjestys =
@@ -795,7 +799,7 @@ export default function Pohjatiedot() {
                 + Lisää lokaatio päivään
               </Nappi>
               {!uusiLokaatio && (
-                <Nappi variant="ghost" onClick={() => setUusiLokaatio({ nimi: "", osoite: "" })}>
+                <Nappi variant="ghost" onClick={() => setUusiLokaatio({ nimi: "", osoite: "", lat: null, lon: null })}>
                   + Luo uusi lokaatio
                 </Nappi>
               )}
@@ -822,11 +826,12 @@ export default function Pohjatiedot() {
                 </div>
                 <div>
                   <div style={pikkuLabel}>Osoite</div>
-                  <Kentta
+                  <OsoiteKentta
                     value={uusiLokaatio.osoite}
-                    onChange={(v) => setUusiLokaatio((u) => ({ ...u, osoite: v }))}
-                    w={220}
-                    ph="Katu 1, Kaupunki"
+                    onChange={(v) => setUusiLokaatio((u) => ({ ...u, osoite: v, lat: null, lon: null }))}
+                    onValitse={(e) => setUusiLokaatio((u) => ({ ...u, osoite: e.nimi, lat: e.lat, lon: e.lon }))}
+                    w={260}
+                    ph="Ala kirjoittaa osoitetta…"
                   />
                 </div>
                 <Nappi onClick={luoLokaatioJaLisaa}>Luo ja lisää</Nappi>

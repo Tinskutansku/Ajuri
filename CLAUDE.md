@@ -66,9 +66,10 @@ Näitä et tee, vaikka tehtävä tuntuisi vaativan.
   mitä KUSKI-rooli näkee
 - **Testin poistaminen, ohittaminen tai heikentäminen** jotta jokin
   menisi läpi
-- **Ulkoiset palvelut**: uudet kutsut Nominatimiin, OSRM:ään tai
-  muualle. Testeissä aina `FakeGeocoder` / feikki-RouterClient,
-  ei koskaan oikeaa verkkoa.
+- **Ulkoiset palvelut**: uudet kutsut Nominatimiin, OSRM:ään, Photoniin
+  tai muualle. Testeissä aina `FakeGeocoder` / `FakeOsoiteEhdottaja` /
+  feikki-RouterClient, ei koskaan oikeaa verkkoa. Nominatimilla ei saa
+  tehdä automaattitäydennystä (käyttöehdot), siihen käytetään Photonia.
 - Docker-, CI-, deploy- tai salaisuuksiin liittyvät muutokset
 - Kaikki, mikä on ristiriidassa `docs/tuotekartta.md`:n tai
   `docs/optimoija-spec.md`:n kanssa

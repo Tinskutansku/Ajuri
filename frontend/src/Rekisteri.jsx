@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { C, Kortti, Nappi, Kentta, Ruksi, Badge, riviTyyli, pikkuLabel, vihje, SOPIMUS_NIMI } from "./ui.jsx";
 import * as api from "./api.js";
+import OsoiteKentta from "./OsoiteKentta.jsx";
 
 const naytaNumero = (v) => (v == null ? "" : String(v));
 const parsiNumero = (s) => (String(s).trim() === "" ? null : Number(s));
@@ -283,9 +284,13 @@ export default function Rekisteri() {
                 ph="Titteli"
               />
             )}
-            <Kentta
+            <OsoiteKentta
               value={h.osoite || ""}
-              onChange={(v) => muutaHenkiloPaikallisesti(h.id, { osoite: v })}
+              // Käsin muutettu osoite: koordinaatit pois pyynnöstä (undefined
+              // putoaa JSONista), jotta backend geokoodaa uuden osoitteen eikä
+              // säilytä vanhoja koordinaatteja "käsin annettuina".
+              onChange={(v) => muutaHenkiloPaikallisesti(h.id, { osoite: v, lat: undefined, lon: undefined })}
+              onValitse={(e) => henkiloAsetaHeti(h, { osoite: e.nimi, lat: e.lat, lon: e.lon })}
               onBlur={() => henkiloBlur(h, "osoite")}
               w={160}
               ph="Osoite"
@@ -440,9 +445,12 @@ export default function Rekisteri() {
                     ph="tuot. oletus"
                   />
                 </span>
-                <Kentta
+                <OsoiteKentta
                   value={k.koti_osoite || ""}
-                  onChange={(v) => muutaKuskiPaikallisesti(k.id, { koti_osoite: v })}
+                  onChange={(v) =>
+                    muutaKuskiPaikallisesti(k.id, { koti_osoite: v, koti_lat: undefined, koti_lon: undefined })
+                  }
+                  onValitse={(e) => kuskiAsetaHeti(k, { koti_osoite: e.nimi, koti_lat: e.lat, koti_lon: e.lon })}
                   onBlur={() => kuskiBlur(k, "koti_osoite")}
                   w={160}
                   ph="Kotiosoite"

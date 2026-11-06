@@ -16,5 +16,11 @@ class Settings(BaseSettings):
                                        # osoitteita, joten rajausta EI oleteta päälle
     geokoodaus_negatiivinen_ttl_pv: int = 7
 
+    # Osoite-ehdotukset kirjoittaessa (app/services/osoite_ehdottaja.py).
+    photon_base_url: str = "https://photon.komoot.io"
+    # "lat,lon" johon tuloksia painotetaan (ei rajaa - ulkomaiset osoitteet
+    # löytyvät yhä). Oletus Helsingin keskusta; tyhjä = ei painotusta.
+    photon_bias: str = "60.1699,24.9384"
+
 
 settings = Settings()

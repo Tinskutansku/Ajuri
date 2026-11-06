@@ -14,6 +14,7 @@ from app.routers import (
     kuvauspaiva,
     lokaatio,
     optimointi,
+    osoitteet,
     paiva_henkilo,
     paiva_kuski,
     paiva_lokaatio,
@@ -48,6 +49,7 @@ app.include_router(tehtava_generointi.router)
 app.include_router(versiot.router)
 app.include_router(keikat.router)
 app.include_router(optimointi.router)
+app.include_router(osoitteet.router)
 
 
 # Tietokantayhteyden katkos -> 503 selkeällä viestillä raa'an 500-
