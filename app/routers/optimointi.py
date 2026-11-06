@@ -34,6 +34,7 @@ from app.schemas import (
     Sijoittamaton,
     Skenaario,
 )
+from app.services.laskenta import aja_prosessissa, paivan_lukko
 from app.services.matka_cache import hae_ajoajat, pyorista_piste
 from app.services.optimoija import (
     KeikkaTulos,
@@ -76,6 +77,26 @@ async def optimoi_paiva(
     db: AsyncSession = Depends(get_db),
     router_client: RouterClient = Depends(get_router_client),
     rooli: KayttajaRooli = Depends(nykyinen_rooli),
+):
+    # Saman päivän päällekkäinen optimointi (esim. sivun päivitys + uusi
+    # Optimoi-painallus kesken laskennan) loisi kaksi ajolistaversiota
+    # kilpasilla. Toinen pyyntö saa heti 409:n eikä jää jonoon.
+    lukko = paivan_lukko(paiva_id)
+    if lukko.locked():
+        raise HTTPException(
+            status_code=409,
+            detail="Optimointi on jo käynnissä tälle päivälle. Odota hetki, niin tulos valmistuu.",
+        )
+    async with lukko:
+        return await _optimoi_paiva(paiva_id, pyynto, db, router_client, rooli)
+
+
+async def _optimoi_paiva(
+    paiva_id: int,
+    pyynto: OptimointiPyynto,
+    db: AsyncSession,
+    router_client: RouterClient,
+    rooli: KayttajaRooli,
 ):
     paiva = await db.get(Kuvauspaiva, paiva_id)
     if paiva is None:
@@ -311,18 +332,18 @@ async def optimoi_paiva(
         max_kyytiaika_lisa_min=pyynto.max_kyytiaika_lisa_min,
     )
 
-    # OR-Tools on synkroninen ja CPU-sidottu (aikaraja_s sekuntia per
-    # ratkaisu). Suoraan async-funktiossa ajettuna se pysäyttäisi koko
-    # backendin tapahtumasilmukan: muut välilehdet eivät saisi vastausta
-    # (näkyi "ei kuvauspäiviä" -tilana). Ajetaan säiepoolissa. OR-Toolsin
-    # transit-callbackit ovat Pythonia, joten ratkaisu pitää GIL:ää suuren
-    # osan ajasta, mutta Python vaihtaa säiettä ~5 ms välein, joten muut
-    # (kevyet) pyynnöt saavat silti vastauksen.
-    tulos = await asyncio.to_thread(ratkaise, tehtavat, kuskit, ajoaika, parametrit)
-
-    skenaariot_data = None
+    # OR-Tools ajetaan erillisessä prosessissa (app/services/laskenta.py):
+    # sen C++-ratkaisija pitää GIL:ää koko ratkaisun ajan, joten säikeessä
+    # backendin muut pyynnöt jumittuivat minuutin optimoinnin ajaksi. Pääratkaisu ja skenaariovertailu ajetaan rinnakkain kahdessa
+    # työprosessissa, jolloin kokonaisaika on pidemmän kesto eikä summa.
     if pyynto.skenaariot:
-        skenaariot_data = await asyncio.to_thread(vertaile_skenaarioita, tehtavat, kuskit, ajoaika, parametrit)
+        tulos, skenaariot_data = await asyncio.gather(
+            aja_prosessissa(ratkaise, tehtavat, kuskit, ajoaika, parametrit),
+            aja_prosessissa(vertaile_skenaarioita, tehtavat, kuskit, ajoaika, parametrit),
+        )
+    else:
+        tulos = await aja_prosessissa(ratkaise, tehtavat, kuskit, ajoaika, parametrit)
+        skenaariot_data = None
 
     # --- Yhdistä lukitut + uudet keikat ---
     persistoinnin_lisatiedot: dict[int, tuple[bool, bool]] = {}  # tehtava_id -> (kasin_siirretty, kuitattu)
