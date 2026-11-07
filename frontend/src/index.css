@@ -5,3 +5,28 @@
 body {
   margin: 0;
 }
+
+/* Ajolistan tulostusversio (Tulostus.jsx). Ruudulla piilossa; tulostettaessa
+   näkyy vain tuloste ja muu sovellus (#root) piilotetaan. */
+.tuloste {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+  #root {
+    display: none !important;
+  }
+  .tuloste {
+    display: block;
+  }
+  .tuloste-kuski {
+    break-inside: avoid-page;
+  }
+  .tuloste tr {
+    break-inside: avoid;
+  }
+}
