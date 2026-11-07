@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { haeKuvauspaivat, optimoiPaiva } from "./api.js";
 import { C, Nappi, Kortti, pikkuLabel } from "./ui.jsx";
 import Tulos from "./Tulos.jsx";
+import Tulostus from "./Tulostus.jsx";
 
 export default function Optimointi() {
   const [paivat, setPaivat] = useState([]);
@@ -120,6 +121,7 @@ export default function Optimointi() {
         </div>
       )}
 
+      {tulos && <Tulostus tulos={tulos} paiva={valittuPaiva} />}
       {tulos && <Tulos tulos={tulos} />}
 
       {!tulos && !laskee && !virhe && (

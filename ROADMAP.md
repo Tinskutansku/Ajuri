@@ -39,7 +39,7 @@ istunnon suunnitelma, 961 riviä).
 
 ## Vaihe H — Osoitteen automaattitäydennys
 
-### H1+H2 `[PR #8]` Osoite-ehdotukset kirjoittaessa
+### H1+H2 `[x]` Osoite-ehdotukset kirjoittaessa
 Tehty yhdessä PR:ssä Tanjan ollessa paikalla 6.11. Nominatimin käyttöehdot
 kieltävät automaattitäydennyksen, joten Tanja valitsi Photonin
 (`app/services/osoite_ehdottaja.py`, oma `OsoiteEhdottaja`-abstraktio).
@@ -50,7 +50,7 @@ kieltävät automaattitäydennyksen, joten Tanja valitsi Photonin
 
 ## Vaihe I — Tulostusversio ja "kuski pois pelistä"
 
-### I1 `[ ]` Tulostusversio
+### I1 `[PR #15]` Tulostusversio
 - Ajolista ilman kustannuksia, yhteystiedot mukana, A4-tuloste
   (`window.print()`), muu UI piilotetaan `@media print`illä
 - **Valmis kun:** lint + build läpi, tulosteessa ei näy yhtään
