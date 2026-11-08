@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { haeKuvauspaivat, optimoiPaiva } from "./api.js";
-import { C, Nappi, Kortti, pikkuLabel } from "./ui.jsx";
+import { C, Nappi, Kortti, pikkuLabel, kelloNyt } from "./ui.jsx";
 import Tulos from "./Tulos.jsx";
 import Tulostus from "./Tulostus.jsx";
+import KuskitPelissa from "./KuskitPelissa.jsx";
 
 export default function Optimointi() {
   const [paivat, setPaivat] = useState([]);
@@ -30,20 +31,32 @@ export default function Optimointi() {
     setVirhe(null);
   };
 
-  const optimoi = async () => {
+  const optimoi = async (pyynto) => {
     if (!valittuId) return;
     setLaskee(true);
     setVirhe(null);
+    const edellinen = tulos;
     setTulos(null);
     try {
-      const data = await optimoiPaiva(Number(valittuId));
+      const data = await optimoiPaiva(Number(valittuId), pyynto);
       setTulos(data);
     } catch (e) {
+      // Edellinen ajolista jää näkyviin virheen alle, ettei kiireessä
+      // (esim. "pois pelistä" -reoptimointi) jää tyhjän ruudun eteen.
+      setTulos(edellinen);
       setVirhe(e.message);
     } finally {
       setLaskee(false);
     }
   };
+
+  // "Kuski pois pelistä" / "Takaisin peliin": jos ajolista on jo näkyvissä,
+  // reoptimoidaan se tästä hetkestä (kuitatut ja alkaneet keikat lukitaan).
+  // Skenaariovertailu jätetään pois, jotta uusi lista valmistuu nopeasti.
+  const reoptimoi = () =>
+    tulos
+      ? optimoi({ aikaraja_s: 8, nyt: kelloNyt(), pohjaversio_id: tulos.versio_id, skenaariot: false })
+      : optimoi();
 
   const valittuPaiva = paivat.find((p) => String(p.id) === valittuId);
 
@@ -96,12 +109,14 @@ export default function Optimointi() {
                 {valittuPaiva.wrap_arvio ? ` · wrap ${valittuPaiva.wrap_arvio.slice(0, 5)}` : ""}
               </span>
             )}
-            <Nappi variant="orange" onClick={optimoi} disabled={laskee || !valittuId} style={{ marginLeft: "auto" }}>
+            <Nappi variant="orange" onClick={() => optimoi()} disabled={laskee || !valittuId} style={{ marginLeft: "auto" }}>
               {laskee ? "Lasketaan…" : tulos ? "↻ Optimoi uudelleen" : "★ Optimoi"}
             </Nappi>
           </div>
         )}
       </Kortti>
+
+      <KuskitPelissa paiva={valittuPaiva} onReoptimoi={reoptimoi} laskee={laskee} />
 
       {virhe && (
         <div

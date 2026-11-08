@@ -26,6 +26,12 @@ export const t = (s) => {
 export const hhmm = (m) =>
   `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 
+// Selaimen kellonaika "HH:MM" (reoptimoinnin nyt-hetki).
+export const kelloNyt = () => {
+  const d = new Date();
+  return hhmm(d.getHours() * 60 + d.getMinutes());
+};
+
 export const SOPIMUS_NIMI = {
   kuukausi: "kk-sopimus",
   paiva: "päiväpalkka",
