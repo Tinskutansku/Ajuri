@@ -62,8 +62,8 @@ kieltävät automaattitäydennyksen, joten Tanja valitsi Photonin
 - Jos backend tarvitsee uuden endpointin, tee se testeineen. Jos
   optimoijaan pitää koskea, se on poikkeama.
 - **Valmis kun:** testi sille, että kuitatut keikat pysyvät lukittuina
-- Löydös: reoptimointi voi ajoittaa uuden noudon ennen `nyt`-hetkeä
-  (optimoijan rajoite, odottaa päätöstä PR #16:ssa)
+- Tanjan päätös (PR #16): reoptimoinnissa mitään ei sijoiteta menneisyyteen,
+  eli kenenkään kuskin reitti ei ala ennen `nyt`-hetkeä
 
 ## Vaihe J — Versiodiffi
 

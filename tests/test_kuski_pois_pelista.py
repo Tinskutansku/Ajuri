@@ -11,6 +11,8 @@ ajamattomat keikkansa siirtyvät muille. Paluu peliin toimii samalla tavalla.
 
 from datetime import date, time
 
+from sqlalchemy import update
+
 from app.main import app
 from app.models import (
     Ajoneuvo,
@@ -178,3 +180,32 @@ async def test_takaisin_peliin_kuitattu_keikka_pysyy_yha_lukittuna(client, db_se
     kuski_id, ilta = _keikka(takaisin, "Iltapäivän nouto")
     assert kuski_id in (pk_a, pk_b)
     assert takaisin["sijoittamatta"] == []
+
+
+async def test_reoptimointi_ei_sijoita_noutoa_menneisyyteen(client, db_session):
+    """Tanjan päätös PR #16: menneisyyteen ei voi sijoittaa mitään.
+
+    Ilman korjausta kuski B:lle siirtynyt nouto ajoitettiin klo 13:25, vaikka
+    reoptimointi tehtiin klo 13:45 (B:llä ei ollut lukittuja keikkoja, joten
+    hänen lähtöaikaansa ei rajoitettu)."""
+    paiva_id, pk_a, pk_b, versio_id = await _seed(db_session)
+    # Iltapäivän nouto alkaa pohjaversiossa vasta nyt-hetken jälkeen, joten
+    # se ei lukitu, mutta sen aikaikkuna sallisi aiemman noudon.
+    await db_session.execute(
+        update(Keikka)
+        .where(Keikka.versio_id == versio_id, Keikka.nouto_klo == time(13, 40))
+        .values(nouto_klo=time(13, 50), jatto_klo=time(13, 55))
+    )
+    await db_session.commit()
+
+    await _aseta_tarjolla(client, pk_a, False)
+    data = await _reoptimoi(client, paiva_id, versio_id, nyt="13:45")
+
+    kuski_id, ilta = _keikka(data, "Iltapäivän nouto")
+    assert kuski_id == pk_b
+    assert ilta["nouto_klo"] >= "13:45"
+    assert data["sijoittamatta"] == []
+
+    # Lukittu, jo ajettu keikka säilyttää silti alkuperäiset aikansa.
+    _, aamu = _keikka(data, "Aamun nouto")
+    assert aamu["nouto_klo"] == "06:30"
