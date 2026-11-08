@@ -50,18 +50,20 @@ kieltävät automaattitäydennyksen, joten Tanja valitsi Photonin
 
 ## Vaihe I — Tulostusversio ja "kuski pois pelistä"
 
-### I1 `[PR #15]` Tulostusversio
+### I1 `[x]` Tulostusversio
 - Ajolista ilman kustannuksia, yhteystiedot mukana, A4-tuloste
   (`window.print()`), muu UI piilotetaan `@media print`illä
 - **Valmis kun:** lint + build läpi, tulosteessa ei näy yhtään
   euromäärää
 
-### I2 `[ ]` "Kuski pois pelistä" -hätänappi
+### I2 `[PR #16]` "Kuski pois pelistä" -hätänappi
 - `tarjolla=false` + reoptimointi `nyt`-hetkestä yhdellä painalluksella,
   ja paluu peliin samalla tavalla
 - Jos backend tarvitsee uuden endpointin, tee se testeineen. Jos
   optimoijaan pitää koskea, se on poikkeama.
 - **Valmis kun:** testi sille, että kuitatut keikat pysyvät lukittuina
+- Tanjan päätös (PR #16): reoptimoinnissa mitään ei sijoiteta menneisyyteen,
+  eli kenenkään kuskin reitti ei ala ennen `nyt`-hetkeä
 
 ## Vaihe J — Versiodiffi
 

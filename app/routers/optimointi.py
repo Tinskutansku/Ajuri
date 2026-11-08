@@ -259,6 +259,22 @@ async def _optimoi_paiva(
 
     ratkaistavat_tehtavat = [t for t in kaikki_tehtavat if t.id not in lukitut_map]
 
+    def _aikaisin_lahto(pk: PaivaKuski) -> tuple[int | None, int | None]:
+        """(aloitus_aika_min, vuoro_aikaisintaan) optimoijalle.
+
+        Reoptimoinnissa mitään ei voi sijoittaa menneisyyteen (Tanjan päätös
+        PR #16): kenenkään kuskin reitti ei ala ennen nyt-hetkeä. Kuskilla,
+        jolla on lukittuja keikkoja, lähtö on viimeisen lukitun jättö tai nyt,
+        kumpi on myöhempi. Muilla vuoron alku nostetaan vähintään nyt-hetkeen.
+        Optimoijan malli ei muutu, vain sille annetut lähtöajat."""
+        aloitus = kuskin_alkutila.get(pk.id, (None, None))[1]
+        vuoro_alku = _time_to_min(pk.vuoro_aikaisintaan)
+        if nyt_min is not None:
+            if aloitus is not None:
+                aloitus = max(aloitus, nyt_min)
+            vuoro_alku = nyt_min if vuoro_alku is None else max(vuoro_alku, nyt_min)
+        return aloitus, vuoro_alku
+
     # --- Rakenna kuskit ---
     kuskit = [
         KuskiRow(
@@ -274,9 +290,9 @@ async def _optimoi_paiva(
             paikkoja=pk.ajoneuvo.mukavuuspaikat,
             aloitus=kuskin_alkutila.get(pk.id, (None, None))[0]
             or pyorista_piste((pk.kuski.koti_lat, pk.kuski.koti_lon)),
-            vuoro_aikaisintaan=_time_to_min(pk.vuoro_aikaisintaan),
+            vuoro_aikaisintaan=_aikaisin_lahto(pk)[1],
             vuoro_viimeistaan=_time_to_min(pk.vuoro_viimeistaan),
-            aloitus_aika_min=kuskin_alkutila.get(pk.id, (None, None))[1],
+            aloitus_aika_min=_aikaisin_lahto(pk)[0],
             pickup_bufferi_min=pk.kuski.pickup_bufferi_min,
         )
         for pk in kuski_rivit
