@@ -14,6 +14,11 @@ from app.models import KayttajaRooli
 HENKILO_KUSKILTA_PIILOTETTAVAT = {"nouto_bufferi_min", "max_etuajassa_min"}
 KUSKI_KUSKILTA_PIILOTETTAVAT = {"pickup_bufferi_min", "tuntihinta_eur"}
 AJOLISTAVERSIO_KUSKILTA_PIILOTETTAVAT = {"kokonaiskustannus_eur"}
+VERSIODIFF_KUSKILTA_PIILOTETTAVAT = {
+    "kokonaiskustannus_a_eur",
+    "kokonaiskustannus_b_eur",
+    "kustannusmuutos_eur",
+}
 KEIKKA_KUSKILTA_PIILOTETTAVAT: set[str] = set()  # ei vielä mitään, mutta sama putki
 OPTIMOINTIVASTAUS_KUSKILTA_PIILOTETTAVAT = {
     "kokonaiskustannus_eur": True,
