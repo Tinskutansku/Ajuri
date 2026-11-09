@@ -56,7 +56,7 @@ kieltävät automaattitäydennyksen, joten Tanja valitsi Photonin
 - **Valmis kun:** lint + build läpi, tulosteessa ei näy yhtään
   euromäärää
 
-### I2 `[PR #16]` "Kuski pois pelistä" -hätänappi
+### I2 `[x]` "Kuski pois pelistä" -hätänappi
 - `tarjolla=false` + reoptimointi `nyt`-hetkestä yhdellä painalluksella,
   ja paluu peliin samalla tavalla
 - Jos backend tarvitsee uuden endpointin, tee se testeineen. Jos
@@ -67,7 +67,7 @@ kieltävät automaattitäydennyksen, joten Tanja valitsi Photonin
 
 ## Vaihe J — Versiodiffi
 
-### J1 `[ ]` Backend: kahden version vertailu
+### J1 `[PR #17]` Backend: kahden version vertailu
 - `GET /versiot/{a}/diff/{b}` → siirtyneet ajat, kuskia vaihtaneet
   keikat, uudet, poistuneet
 - Roolisuodatus: KUSKI ei näe kustannusmuutoksia

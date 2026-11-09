@@ -330,6 +330,53 @@ class KeikkaRead(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Versiodiffi (ROADMAP J1, docs/tuotekartta.md vaihe J)
+# ---------------------------------------------------------------------------
+
+
+class DiffKeikka(BaseModel):
+    """Yksi keikka diffissä. Keikat täsmätään versioiden välillä
+    tehtava_id:n perusteella. `_a`-kentät ovat vanhasta versiosta, `_b`
+    uudesta; uudella keikalla `_a`-kentät ovat None, poistuneella `_b`."""
+
+    tehtava_id: int
+    tehtava_nimi: str
+    kuski_id_a: int | None = None
+    kuski_nimi_a: str | None = None
+    kuski_id_b: int | None = None
+    kuski_nimi_b: str | None = None
+    nouto_klo_a: time | None = None
+    nouto_klo_b: time | None = None
+    jatto_klo_a: time | None = None
+    jatto_klo_b: time | None = None
+
+
+class DiffKuski(BaseModel):
+    """Kuskikohtainen keikkamäärän muutos ("Tiinalle +1 keikka")."""
+
+    kuski_id: int
+    kuski_nimi: str
+    keikkoja_a: int
+    keikkoja_b: int
+    muutos: int
+
+
+class VersioDiff(BaseModel):
+    versio_a_id: int
+    versio_b_id: int
+    paiva_id: int
+    siirtyneet: list[DiffKeikka]          # nouto- tai jättöaika muuttui
+    kuskia_vaihtaneet: list[DiffKeikka]   # sama tehtävä, eri kuski
+    uudet: list[DiffKeikka]               # vain versiossa b
+    poistuneet: list[DiffKeikka]          # vain versiossa a
+    ennallaan_lkm: int                    # sama kuski ja samat ajat
+    kuskit: list[DiffKuski]               # vain kuskit, joiden keikkamäärä muuttui
+    kokonaiskustannus_a_eur: float | None
+    kokonaiskustannus_b_eur: float | None
+    kustannusmuutos_eur: float | None     # b - a; None jos kumpi tahansa puuttuu
+
+
+# ---------------------------------------------------------------------------
 # Optimointi (docs/optimoija-spec.md §1)
 # ---------------------------------------------------------------------------
 
