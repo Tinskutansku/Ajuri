@@ -182,3 +182,13 @@ export function generoiTehtavat(paivaId) {
 export function ehdotaOsoitteita(q, signal) {
   return pyyda(`/osoitteet/ehdota?q=${encodeURIComponent(q)}`, { signal });
 }
+
+// --- Ajolistaversiot ja niiden vertailu ---
+
+export function haeVersiot(paivaId) {
+  return pyyda(`/versiot?paiva_id=${paivaId}`);
+}
+// a = vanha, b = uusi. KUSKI-roolilla kustannuskentät puuttuvat vastauksesta.
+export function haeVersiodiff(aId, bId) {
+  return pyyda(`/versiot/${aId}/diff/${bId}`);
+}

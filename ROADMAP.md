@@ -67,7 +67,7 @@ kieltävät automaattitäydennyksen, joten Tanja valitsi Photonin
 
 ## Vaihe J — Versiodiffi
 
-### J1 `[PR #17]` Backend: kahden version vertailu
+### J1 `[x]` Backend: kahden version vertailu
 - `GET /versiot/{a}/diff/{b}` → siirtyneet ajat, kuskia vaihtaneet
   keikat, uudet, poistuneet
 - Roolisuodatus: KUSKI ei näe kustannusmuutoksia
