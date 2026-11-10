@@ -4,6 +4,7 @@ import { C, Nappi, Kortti, pikkuLabel, kelloNyt } from "./ui.jsx";
 import Tulos from "./Tulos.jsx";
 import Tulostus from "./Tulostus.jsx";
 import KuskitPelissa from "./KuskitPelissa.jsx";
+import Versiodiff from "./Versiodiff.jsx";
 
 export default function Optimointi() {
   const [paivat, setPaivat] = useState([]);
@@ -135,6 +136,8 @@ export default function Optimointi() {
           ⚠ Optimointi epäonnistui: {virhe}
         </div>
       )}
+
+      {!laskee && valittuId && <Versiodiff paivaId={Number(valittuId)} nykyinenVersioId={tulos?.versio_id} />}
 
       {tulos && <Tulostus tulos={tulos} paiva={valittuPaiva} />}
       {tulos && <Tulos tulos={tulos} />}

@@ -67,13 +67,13 @@ kieltävät automaattitäydennyksen, joten Tanja valitsi Photonin
 
 ## Vaihe J — Versiodiffi
 
-### J1 `[PR #17]` Backend: kahden version vertailu
+### J1 `[x]` Backend: kahden version vertailu
 - `GET /versiot/{a}/diff/{b}` → siirtyneet ajat, kuskia vaihtaneet
   keikat, uudet, poistuneet
 - Roolisuodatus: KUSKI ei näe kustannusmuutoksia
 - **Valmis kun:** testit kaikille neljälle muutostyypille
 
-### J2 `[ ]` Frontend: diffinäkymä
+### J2 `[PR #18]` Frontend: diffinäkymä
 - Esim. "Näyttelijä 2: nouto 7:40 → 8:10 · Tiinalle +1 keikka"
 - **Valmis kun:** lint + build läpi
 
