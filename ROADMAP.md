@@ -73,7 +73,7 @@ kieltävät automaattitäydennyksen, joten Tanja valitsi Photonin
 - Roolisuodatus: KUSKI ei näe kustannusmuutoksia
 - **Valmis kun:** testit kaikille neljälle muutostyypille
 
-### J2 `[ ]` Frontend: diffinäkymä
+### J2 `[PR #18]` Frontend: diffinäkymä
 - Esim. "Näyttelijä 2: nouto 7:40 → 8:10 · Tiinalle +1 keikka"
 - **Valmis kun:** lint + build läpi
 
