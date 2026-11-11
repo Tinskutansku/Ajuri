@@ -137,9 +137,29 @@ export function Kortti({ otsikko, nro, lisa, children }) {
   );
 }
 
-export function Kentta({ value, onChange, onBlur, w = 72, ph = "", type = "text" }) {
+// Näkyvä otsikko kentän yläpuolelle (WCAG 1.3.1 ja 3.3.2: placeholder ei
+// kelpaa otsikoksi). Otsikko on <label htmlFor={id}>, joten ruudunlukija
+// lukee sen kentän nimenä ja otsikon klikkaus vie kenttään. Otsikko ja kenttä
+// ovat samassa laatikossa, joten kapealla näytöllä rivittyessä ne kulkevat
+// yhdessä.
+export function KenttaOtsikolla({ id, otsikko, children, style = {} }) {
+  return (
+    <div style={{ display: "inline-flex", flexDirection: "column", ...style }}>
+      <label htmlFor={id} style={pikkuLabel}>
+        {otsikko}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+// id: kytkee kentän <label htmlFor>-otsikkoon. label: aria-label, kun
+// näkyvää otsikkoa ei ole.
+export function Kentta({ value, onChange, onBlur, w = 72, ph = "", type = "text", id, label }) {
   return (
     <input
+      id={id}
+      aria-label={label}
       value={value}
       placeholder={ph}
       type={type}

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { C, Kortti, Nappi, Kentta, Ruksi, Badge, riviTyyli, pikkuLabel, vihje, SOPIMUS_NIMI } from "./ui.jsx";
+import { C, Kortti, Nappi, Kentta, KenttaOtsikolla, Ruksi, Badge, riviTyyli, pikkuLabel, vihje, SOPIMUS_NIMI } from "./ui.jsx";
 import * as api from "./api.js";
 import OsoiteKentta from "./OsoiteKentta.jsx";
 
@@ -259,51 +259,62 @@ export default function Rekisteri() {
       {henkilot
         .filter((h) => h.tyyppi === tyyppi)
         .map((h) => (
-          <div key={h.id} style={{ ...riviTyyli, flexWrap: "wrap" }}>
-            <Kentta
-              value={h.nimi}
-              onChange={(v) => muutaHenkiloPaikallisesti(h.id, { nimi: v })}
-              onBlur={() => henkiloNimiBlur(h)}
-              w={150}
-              ph="Nimi"
-            />
+          <div key={h.id} style={{ ...riviTyyli, flexWrap: "wrap", alignItems: "flex-end" }}>
+            <KenttaOtsikolla id={`henkilo-${h.id}-nimi`} otsikko="Nimi">
+              <Kentta
+                id={`henkilo-${h.id}-nimi`}
+                value={h.nimi}
+                onChange={(v) => muutaHenkiloPaikallisesti(h.id, { nimi: v })}
+                onBlur={() => henkiloNimiBlur(h)}
+                w={150}
+              />
+            </KenttaOtsikolla>
             {tyyppi === "cast" ? (
-              <Kentta
-                value={h.roolinimi || ""}
-                onChange={(v) => muutaHenkiloPaikallisesti(h.id, { roolinimi: v })}
-                onBlur={() => henkiloBlur(h, "roolinimi")}
-                w={120}
-                ph="Roolinimi"
-              />
+              <KenttaOtsikolla id={`henkilo-${h.id}-roolinimi`} otsikko="Roolinimi">
+                <Kentta
+                  id={`henkilo-${h.id}-roolinimi`}
+                  value={h.roolinimi || ""}
+                  onChange={(v) => muutaHenkiloPaikallisesti(h.id, { roolinimi: v })}
+                  onBlur={() => henkiloBlur(h, "roolinimi")}
+                  w={120}
+                />
+              </KenttaOtsikolla>
             ) : (
-              <Kentta
-                value={h.titteli || ""}
-                onChange={(v) => muutaHenkiloPaikallisesti(h.id, { titteli: v })}
-                onBlur={() => henkiloBlur(h, "titteli")}
-                w={120}
-                ph="Titteli"
-              />
+              <KenttaOtsikolla id={`henkilo-${h.id}-titteli`} otsikko="Titteli">
+                <Kentta
+                  id={`henkilo-${h.id}-titteli`}
+                  value={h.titteli || ""}
+                  onChange={(v) => muutaHenkiloPaikallisesti(h.id, { titteli: v })}
+                  onBlur={() => henkiloBlur(h, "titteli")}
+                  w={120}
+                />
+              </KenttaOtsikolla>
             )}
-            <OsoiteKentta
-              value={h.osoite || ""}
-              // Käsin muutettu osoite: koordinaatit pois pyynnöstä (undefined
-              // putoaa JSONista), jotta backend geokoodaa uuden osoitteen eikä
-              // säilytä vanhoja koordinaatteja "käsin annettuina".
-              onChange={(v) => muutaHenkiloPaikallisesti(h.id, { osoite: v, lat: undefined, lon: undefined })}
-              onValitse={(e) => henkiloAsetaHeti(h, { osoite: e.nimi, lat: e.lat, lon: e.lon })}
-              onBlur={() => henkiloBlur(h, "osoite")}
-              w={160}
-              ph="Osoite"
-            />
-            <Kentta
-              value={h.puhelin || ""}
-              onChange={(v) => muutaHenkiloPaikallisesti(h.id, { puhelin: v })}
-              onBlur={() => henkiloBlur(h, "puhelin")}
-              w={110}
-              ph="Puhelin"
-            />
+            <KenttaOtsikolla id={`henkilo-${h.id}-osoite`} otsikko="Osoite">
+              <OsoiteKentta
+                id={`henkilo-${h.id}-osoite`}
+                value={h.osoite || ""}
+                // Käsin muutettu osoite: koordinaatit pois pyynnöstä (undefined
+                // putoaa JSONista), jotta backend geokoodaa uuden osoitteen eikä
+                // säilytä vanhoja koordinaatteja "käsin annettuina".
+                onChange={(v) => muutaHenkiloPaikallisesti(h.id, { osoite: v, lat: undefined, lon: undefined })}
+                onValitse={(e) => henkiloAsetaHeti(h, { osoite: e.nimi, lat: e.lat, lon: e.lon })}
+                onBlur={() => henkiloBlur(h, "osoite")}
+                w={160}
+              />
+            </KenttaOtsikolla>
+            <KenttaOtsikolla id={`henkilo-${h.id}-puhelin`} otsikko="Puhelin">
+              <Kentta
+                id={`henkilo-${h.id}-puhelin`}
+                type="tel"
+                value={h.puhelin || ""}
+                onChange={(v) => muutaHenkiloPaikallisesti(h.id, { puhelin: v })}
+                onBlur={() => henkiloBlur(h, "puhelin")}
+                w={110}
+              />
+            </KenttaOtsikolla>
             <KoordinaattiMerkki lat={h.lat} lon={h.lon} />
-            <span style={{ marginLeft: "auto", display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+            <span style={{ marginLeft: "auto", display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", minHeight: 34 }}>
               <Ruksi
                 checked={h.oletus_oma_auto}
                 onChange={(v) => henkiloAsetaHeti(h, { oletus_oma_auto: v })}
@@ -316,6 +327,8 @@ export default function Rekisteri() {
               />
               <button
                 onClick={() => poistaHenkiloRivi(h)}
+                aria-label={`Poista ${h.nimi || "henkilö"}`}
+                title="Poista"
                 style={{ border: "none", background: "none", cursor: "pointer", color: C.rust, fontWeight: 900, fontSize: 16 }}
               >
                 ×
@@ -347,8 +360,11 @@ export default function Rekisteri() {
         )}
         {!!tuotannot.length && (
           <div>
-            <div style={pikkuLabel}>Valitse tuotanto</div>
+            <label htmlFor="rekisteri-tuotanto" style={{ ...pikkuLabel, display: "block" }}>
+              Valitse tuotanto
+            </label>
             <select
+              id="rekisteri-tuotanto"
               value={tuotantoId}
               onChange={(e) => setTuotantoId(e.target.value)}
               style={{
@@ -398,45 +414,53 @@ export default function Rekisteri() {
 
           <Kortti otsikko="Kuskit" nro="C">
             {kuskit.map((k) => (
-              <div key={k.id} style={{ ...riviTyyli, flexWrap: "wrap" }}>
-                <Kentta
-                  value={k.nimi}
-                  onChange={(v) => muutaKuskiPaikallisesti(k.id, { nimi: v })}
-                  onBlur={() => kuskiNimiBlur(k)}
-                  w={130}
-                  ph="Nimi"
-                />
-                <Kentta
-                  value={k.puhelin || ""}
-                  onChange={(v) => muutaKuskiPaikallisesti(k.id, { puhelin: v })}
-                  onBlur={() => kuskiBlur(k, "puhelin")}
-                  w={110}
-                  ph="Puhelin"
-                />
-                <select
-                  value={k.sopimus}
-                  onChange={(e) => kuskiAsetaHeti(k, { sopimus: e.target.value })}
-                  style={{
-                    fontFamily: "'Archivo',sans-serif",
-                    fontWeight: 600,
-                    fontSize: 12,
-                    padding: "6px 8px",
-                    border: `2px solid ${C.line}`,
-                    borderRadius: 8,
-                    background: C.card,
-                    color: C.inkSolid,
-                    cursor: "pointer",
-                  }}
-                >
-                  {Object.entries(SOPIMUS_NIMI).map(([arvo, nimi]) => (
-                    <option key={arvo} value={arvo}>
-                      {nimi}
-                    </option>
-                  ))}
-                </select>
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                  <span style={pikkuLabel}>€/h</span>
+              <div key={k.id} style={{ ...riviTyyli, flexWrap: "wrap", alignItems: "flex-end" }}>
+                <KenttaOtsikolla id={`kuski-${k.id}-nimi`} otsikko="Nimi">
                   <Kentta
+                    id={`kuski-${k.id}-nimi`}
+                    value={k.nimi}
+                    onChange={(v) => muutaKuskiPaikallisesti(k.id, { nimi: v })}
+                    onBlur={() => kuskiNimiBlur(k)}
+                    w={130}
+                  />
+                </KenttaOtsikolla>
+                <KenttaOtsikolla id={`kuski-${k.id}-puhelin`} otsikko="Puhelin">
+                  <Kentta
+                    id={`kuski-${k.id}-puhelin`}
+                    type="tel"
+                    value={k.puhelin || ""}
+                    onChange={(v) => muutaKuskiPaikallisesti(k.id, { puhelin: v })}
+                    onBlur={() => kuskiBlur(k, "puhelin")}
+                    w={110}
+                  />
+                </KenttaOtsikolla>
+                <KenttaOtsikolla id={`kuski-${k.id}-sopimus`} otsikko="Sopimus">
+                  <select
+                    id={`kuski-${k.id}-sopimus`}
+                    value={k.sopimus}
+                    onChange={(e) => kuskiAsetaHeti(k, { sopimus: e.target.value })}
+                    style={{
+                      fontFamily: "'Archivo',sans-serif",
+                      fontWeight: 600,
+                      fontSize: 12,
+                      padding: "6px 8px",
+                      border: `2px solid ${C.line}`,
+                      borderRadius: 8,
+                      background: C.card,
+                      color: C.inkSolid,
+                      cursor: "pointer",
+                    }}
+                  >
+                    {Object.entries(SOPIMUS_NIMI).map(([arvo, nimi]) => (
+                      <option key={arvo} value={arvo}>
+                        {nimi}
+                      </option>
+                    ))}
+                  </select>
+                </KenttaOtsikolla>
+                <KenttaOtsikolla id={`kuski-${k.id}-tuntihinta`} otsikko="€/h">
+                  <Kentta
+                    id={`kuski-${k.id}-tuntihinta`}
                     type="number"
                     value={k.tuntihinta_eur}
                     onChange={(v) => muutaKuskiPaikallisesti(k.id, { tuntihinta_eur: v })}
@@ -444,31 +468,34 @@ export default function Rekisteri() {
                     w={72}
                     ph="tuot. oletus"
                   />
-                </span>
-                <OsoiteKentta
-                  value={k.koti_osoite || ""}
-                  onChange={(v) =>
-                    muutaKuskiPaikallisesti(k.id, { koti_osoite: v, koti_lat: undefined, koti_lon: undefined })
-                  }
-                  onValitse={(e) => kuskiAsetaHeti(k, { koti_osoite: e.nimi, koti_lat: e.lat, koti_lon: e.lon })}
-                  onBlur={() => kuskiBlur(k, "koti_osoite")}
-                  w={160}
-                  ph="Kotiosoite"
-                />
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                  <span style={pikkuLabel}>pickup-bufferi</span>
+                </KenttaOtsikolla>
+                <KenttaOtsikolla id={`kuski-${k.id}-kotiosoite`} otsikko="Kotiosoite">
+                  <OsoiteKentta
+                    id={`kuski-${k.id}-kotiosoite`}
+                    value={k.koti_osoite || ""}
+                    onChange={(v) =>
+                      muutaKuskiPaikallisesti(k.id, { koti_osoite: v, koti_lat: undefined, koti_lon: undefined })
+                    }
+                    onValitse={(e) => kuskiAsetaHeti(k, { koti_osoite: e.nimi, koti_lat: e.lat, koti_lon: e.lon })}
+                    onBlur={() => kuskiBlur(k, "koti_osoite")}
+                    w={160}
+                  />
+                </KenttaOtsikolla>
+                <KenttaOtsikolla id={`kuski-${k.id}-bufferi`} otsikko="Pickup-bufferi (min)">
                   <Kentta
+                    id={`kuski-${k.id}-bufferi`}
                     type="number"
                     value={k.pickup_bufferi_min}
                     onChange={(v) => muutaKuskiPaikallisesti(k.id, { pickup_bufferi_min: v })}
                     onBlur={() => kuskiBlur(k, "pickup_bufferi_min")}
                     w={44}
                   />
-                  <span style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, color: C.olive }}>min</span>
-                </span>
+                </KenttaOtsikolla>
                 <KoordinaattiMerkki lat={k.koti_lat} lon={k.koti_lon} />
                 <button
                   onClick={() => poistaKuskiRivi(k)}
+                  aria-label={`Poista ${k.nimi || "kuski"}`}
+                  title="Poista"
                   style={{ marginLeft: "auto", border: "none", background: "none", cursor: "pointer", color: C.rust, fontWeight: 900, fontSize: 16 }}
                 >
                   ×
