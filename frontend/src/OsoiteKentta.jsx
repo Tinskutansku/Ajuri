@@ -15,7 +15,9 @@ import { C } from "./ui.jsx";
 const VIIVE_MS = 350;
 const MIN_MERKKEJA = 3;
 
-export default function OsoiteKentta({ value, onChange, onValitse, onBlur, w = 220, ph = "Katu 1, Kaupunki" }) {
+// id kytkee kentän näkyvään <label htmlFor>-otsikkoon, label antaa aria-labelin
+// kun näkyvää otsikkoa ei ole.
+export default function OsoiteKentta({ value, onChange, onValitse, onBlur, w = 220, ph = "Katu 1, Kaupunki", id, label }) {
   const [ehdotukset, setEhdotukset] = useState([]);
   const [auki, setAuki] = useState(false);
   const [korostettu, setKorostettu] = useState(-1);
@@ -80,6 +82,8 @@ export default function OsoiteKentta({ value, onChange, onValitse, onBlur, w = 2
   return (
     <div style={{ position: "relative", display: "inline-block" }}>
       <input
+        id={id}
+        aria-label={label}
         value={value}
         placeholder={ph}
         autoComplete="off"
