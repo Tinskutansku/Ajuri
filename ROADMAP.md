@@ -83,7 +83,7 @@ kieltävät automaattitäydennyksen, joten Tanja valitsi Photonin
 - `[x]` `GET /` → tervetulovastaus 404:n sijaan (testi)
 - `[x]` pytest-asyncio-varoitus pois: `asyncio_default_fixture_loop_scope`
   `pytest.ini`:hin
-- `[PR #19]` **Näkyvät kenttäotsikot Rekisteriin (saavutettavuus, Tanjan toive 6.11.)**
+- `[x]` **Näkyvät kenttäotsikot Rekisteriin (saavutettavuus, Tanjan toive 6.11.)**
   Nyt kenttien nimi näkyy vain haaleana placeholderina, joka katoaa kun
   kenttään kirjoittaa. Placeholder ei kelpaa otsikoksi (WCAG 3.3.2 ja 1.3.1).
   - Näyttelijät- ja Työryhmä-korttiin otsikkorivi kenttien yläpuolelle:

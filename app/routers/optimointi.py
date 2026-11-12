@@ -31,6 +31,7 @@ from app.schemas import (
     KeikkaVastaus,
     KuskinAjolista,
     OptimointiPyynto,
+    OptimoinninTila,
     OptimointiVastaus,
     Sijoittamaton,
     Skenaario,
@@ -73,6 +74,29 @@ def _hhmm(minuutit: int) -> str:
 def _parse_hhmm(teksti: str) -> int:
     h, m = teksti.split(":")
     return int(h) * 60 + int(m)
+
+
+@router.get("/paivat/{paiva_id}/optimointi", response_model=OptimoinninTila)
+async def optimoinnin_tila(paiva_id: int, db: AsyncSession = Depends(get_db)):
+    """Kevyt tilakysely Optimointi-välilehdelle: sivun päivitys kesken
+    laskennan ei hukkaa tulosta, vaan frontend kyselee tätä, kunnes
+    laskenta on valmis, ja hakee sitten viimeisimmän version."""
+    paiva = await db.get(Kuvauspaiva, paiva_id)
+    if paiva is None:
+        raise HTTPException(status_code=404, detail="Kuvauspäivää ei löytynyt")
+    viimeisin_versio_id = (
+        await db.execute(
+            select(AjolistaVersio.id)
+            .where(AjolistaVersio.paiva_id == paiva_id)
+            .order_by(AjolistaVersio.versio_nro.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+    return OptimoinninTila(
+        paiva_id=paiva_id,
+        kaynnissa=paivan_lukko(paiva_id).locked(),
+        viimeisin_versio_id=viimeisin_versio_id,
+    )
 
 
 @router.post("/paivat/{paiva_id}/optimoi", response_model=OptimointiVastaus)

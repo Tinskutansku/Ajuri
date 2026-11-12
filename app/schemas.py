@@ -428,6 +428,16 @@ class Skenaario(BaseModel):
     halvin: bool
 
 
+class OptimoinninTila(BaseModel):
+    """GET /paivat/{id}/optimointi: onko päivän optimointi kesken ja mikä on
+    päivän viimeisin tallennettu ajolistaversio. Ei kustannuksia, joten
+    roolisuodatusta ei tarvita."""
+
+    paiva_id: int
+    kaynnissa: bool
+    viimeisin_versio_id: int | None
+
+
 class OptimointiVastaus(BaseModel):
     versio_id: int
     versio_nro: int

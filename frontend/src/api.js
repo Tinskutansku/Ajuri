@@ -78,8 +78,8 @@ export function haeHenkiloKaytto(id) {
   return pyyda(`/henkilot/${id}/kaytto`);
 }
 
-export function haeKuskit(tuotantoId) {
-  return pyyda(`/kuskit?tuotanto_id=${tuotantoId}`);
+export function haeKuskit(tuotantoId, { sisallaPassiiviset = false } = {}) {
+  return pyyda(`/kuskit?tuotanto_id=${tuotantoId}${sisallaPassiiviset ? "&sisalla_passiiviset=true" : ""}`);
 }
 export function luoKuski(data) {
   return pyyda("/kuskit", { method: "POST", body: JSON.stringify(data) });
@@ -160,8 +160,8 @@ export function poistaPaivaKuski(id) {
 
 // --- Tehtävät: generointi ja käsin lisätyt ---
 
-export function haeTehtavat(paivaId) {
-  return pyyda(`/tehtavat?paiva_id=${paivaId}`);
+export function haeTehtavat(paivaId, { sisallaPassiiviset = false } = {}) {
+  return pyyda(`/tehtavat?paiva_id=${paivaId}${sisallaPassiiviset ? "&sisalla_passiiviset=true" : ""}`);
 }
 export function luoTehtava(data) {
   return pyyda("/tehtavat", json("POST", data));
@@ -187,6 +187,14 @@ export function ehdotaOsoitteita(q, signal) {
 
 export function haeVersiot(paivaId) {
   return pyyda(`/versiot?paiva_id=${paivaId}`);
+}
+export function haeKeikat(versioId) {
+  return pyyda(`/keikat?versio_id=${versioId}`);
+}
+// Vastaus: { paiva_id, kaynnissa, viimeisin_versio_id }. Kevyt, kysellään
+// muutaman sekunnin välein, kun laskenta on kesken.
+export function haeOptimoinninTila(paivaId) {
+  return pyyda(`/paivat/${paivaId}/optimointi`);
 }
 // a = vanha, b = uusi. KUSKI-roolilla kustannuskentät puuttuvat vastauksesta.
 export function haeVersiodiff(aId, bId) {
