@@ -83,7 +83,7 @@ kieltävät automaattitäydennyksen, joten Tanja valitsi Photonin
 - `[x]` `GET /` → tervetulovastaus 404:n sijaan (testi)
 - `[x]` pytest-asyncio-varoitus pois: `asyncio_default_fixture_loop_scope`
   `pytest.ini`:hin
-- `[PR #19]` **Näkyvät kenttäotsikot Rekisteriin (saavutettavuus, Tanjan toive 6.11.)**
+- `[x]` **Näkyvät kenttäotsikot Rekisteriin (saavutettavuus, Tanjan toive 6.11.)**
   Nyt kenttien nimi näkyy vain haaleana placeholderina, joka katoaa kun
   kenttään kirjoittaa. Placeholder ei kelpaa otsikoksi (WCAG 3.3.2 ja 1.3.1).
   - Näyttelijät- ja Työryhmä-korttiin otsikkorivi kenttien yläpuolelle:
@@ -97,7 +97,7 @@ kieltävät automaattitäydennyksen, joten Tanja valitsi Photonin
   - Pidä `pikkuLabel`-tyyli, jota Pohjatiedot jo käyttää (NIMI, OSOITE).
   - **Valmis kun:** lint + build läpi, ja PR:ssä on kuvakaappaus
     Rekisteristä sekä leveänä että mobiilileveydellä
-- `[ ]` **Optimointi-välilehti muistaa tuloksen (Tanjan toive 6.11.)**
+- `[PR #20]` **Optimointi-välilehti muistaa tuloksen (Tanjan toive 6.11.)**
   Nyt sivun päivitys kesken laskennan hukkaa tuloksen näkyvistä, vaikka
   optimointi valmistuu backendissä ja tallentuu uudeksi ajolistaversioksi.
   - Kun päivä valitaan, näytä sen viimeisin tallennettu ajolista heti

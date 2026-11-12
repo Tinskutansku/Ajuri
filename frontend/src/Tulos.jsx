@@ -64,8 +64,9 @@ function KuskinKortti({ kuski, nro, MIN, W }) {
   const lisa =
     `${kuski.vuoro_alku}–${kuski.vuoro_loppu} · ` +
     `${Math.floor(kuski.kesto_min / 60)}h ${String(kuski.kesto_min % 60).padStart(2, "0")}min · ` +
-    `${SOPIMUS_NIMI[kuski.sopimus] ?? kuski.sopimus} · ` +
-    `+${Math.round(kuski.lisakustannus_eur)} €` +
+    (SOPIMUS_NIMI[kuski.sopimus] ?? kuski.sopimus ?? "") +
+    // Tallennetussa versiossa ja KUSKI-roolilla kuskikohtaista kustannusta ei ole.
+    (typeof kuski.lisakustannus_eur === "number" ? ` · +${Math.round(kuski.lisakustannus_eur)} €` : "") +
     (ylitoita ? " · YLITYÖTÄ" : "");
 
   return (
@@ -114,7 +115,8 @@ function Sijoittamattomat({ sijoittamatta }) {
       {sijoittamatta.map((s) => (
         <div key={s.tehtava_id} style={{ fontFamily: "'Archivo',sans-serif", fontSize: 12, color: C.inkSolid, marginBottom: 2 }}>
           <b>{s.nimi}</b>{" "}
-          <span style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, color: C.rust }}>[{s.syy}]</span> — {s.selite}
+          {s.syy && <span style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, color: C.rust }}>[{s.syy}] </span>}
+          — {s.selite}
         </div>
       ))}
     </div>
@@ -153,13 +155,28 @@ export default function Tulos({ tulos }) {
   return (
     <div>
       <div style={{ fontFamily: "'Fraunces',serif", fontWeight: 900, fontSize: 30, marginBottom: 4 }}>
-        +{Math.round(tulos.kokonaiskustannus_eur)} €
+        {typeof tulos.kokonaiskustannus_eur === "number" && `+${Math.round(tulos.kokonaiskustannus_eur)} €`}
         <span style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 600, fontSize: 12, marginLeft: 10, color: C.olive }}>
-          päivän lisäkustannus · {tulos.kuskit.length} kuskia käytössä
+          {typeof tulos.kokonaiskustannus_eur === "number" && "päivän lisäkustannus · "}
+          {tulos.kuskit.length} kuskia käytössä
         </span>
       </div>
       <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, color: C.olive, marginBottom: 18 }}>
-        versio {tulos.versio_nro} (id {tulos.versio_id})
+        versio {tulos.versio_nro}
+        {tulos.tallennettu?.tunniste ? ` ${tulos.tallennettu.tunniste}` : ""} (id {tulos.versio_id})
+        {tulos.tallennettu && (
+          <>
+            {" · "}tallennettu{" "}
+            {new Date(tulos.tallennettu.luotu).toLocaleString("fi-FI", {
+              day: "numeric",
+              month: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+            {tulos.tallennettu.julkaistu ? " · julkaistu" : ""}
+            {" · kuskikohtaiset kustannukset ja skenaariot näkyvät, kun optimoit uudelleen"}
+          </>
+        )}
       </div>
 
       <Sijoittamattomat sijoittamatta={tulos.sijoittamatta} />
