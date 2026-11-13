@@ -76,7 +76,8 @@ halvempaa kuin lisäkuskin palkkaaminen.
 ## Tekninen toteutus
 
 **Stack:** Python 3.13, FastAPI, SQLAlchemy 2.0 (async), PostgreSQL 16,
-Alembic, Google OR-Tools, OSRM, Nominatim, React + Vite, Docker Compose.
+Alembic, Google OR-Tools, OSRM, Nominatim, Photon, React 19 + Vite,
+Docker Compose, GitHub Actions.
 
 **Arkkitehtuuri:**
 
@@ -86,19 +87,26 @@ app/
   schemas.py             Pydantic v2 -skeemat (Create/Read erikseen)
   rooli.py               Roolin lähde (X-Rooli-header, ks. alempana)
   response_filter.py     Roolipohjainen kenttäsuodatus vastauksiin
-  routers/               REST-endpointit (CRUD, generointi, optimointi)
+  routers/               REST-endpointit (CRUD, generointi, optimointi,
+                         versiot ja versiodiffi, osoite-ehdotukset)
   services/
     optimoija.py           OR-Tools-malli, syyanalyysi, skenaariot
+    laskenta.py            Optimoinnin ajo erillisessä prosessipoolissa
     kustannus.py           Sopimustyyppikohtainen kustannuslaskenta
     matka_cache.py         Ajoaikojen välimuisti
     router_client.py       Reititys-API-abstraktio (OSRM)
     geocoder_client.py     Geokoodaus-API-abstraktio (Nominatim)
     geokoodaus_cache.py    Osoitteiden geokoodausvälimuisti
+    osoite_ehdottaja.py    Osoite-ehdotukset kirjoittaessa (Photon)
   seed.py                Demo-kuvauspäivän generointi
 alembic/                 Tietokantamigraatiot
 tests/                   Pytest-testit
-frontend/                Vite + React -frontti
+frontend/src/            React-frontti: Rekisteri, Pohjatiedot, Tehtävät,
+                         Optimointi (tulos, tulostus, versiodiffi,
+                         kuski pois pelistä), yhteinen OsoiteKentta
+scripts/                 Windowsin käynnistys- ja sammutusskriptit
 docs/                    Spesifikaatiot, tuotekartta, käynnistysohjeet
+.github/workflows/ci.yml CI: pytest, Docker Compose + migraatiot, frontti
 ajolista_optimoija.py    Alkuperäinen OR-Tools-prototyyppi (itsenäinen)
 ```
 
@@ -129,10 +137,33 @@ välimuistitettu tietokantaan pistepareittain ja osoitteittain — samat
 hotellit, lokaatiot ja osoitteet toistuvat päivästä toiseen, joten
 ulkoista palvelua kutsutaan harvoin. Nominatim-toteutus noudattaa
 palvelun käyttöehtoja (yksilöivä User-Agent, enintään 1 kutsu/s).
+Käyttöehdot kieltävät myös automaattitäydennyksen, joten osoitekentän
+ehdotukset kirjoittaessa tulevat Photonista (sama OpenStreetMap-data,
+tehty tähän käyttöön) omassa `OsoiteEhdottaja`-abstraktiossaan.
+Valitun ehdotuksen koordinaatit tallentuvat suoraan, joten geokoodausta
+ei tarvita lainkaan. Tulokset painotetaan pääkaupunkiseudulle mutta
+niitä ei rajata, koska yhteistuotannoissa tarvitaan myös ulkomaisia
+osoitteita.
 Testeissä käytetään deterministisiä toteutuksia, joten yksikään testi ei
 kosketa verkkoa. Julkinen OSRM-demopalvelin ei sovi tuotantoon (ei
 SLA:ta, rate limit) — vaihto omaan instanssiin tai kaupalliseen
 palveluun on yksi uusi luokka ja asetusmuutos.
+
+**Optimointi omassa prosessissaan.** OR-Toolsin C++-ratkaisija pitää
+Pythonin GIL-lukkoa koko ratkaisun ajan, joten samassa prosessissa
+ajettuna se pysäytti koko API:n optimoinnin ajaksi (noin minuutti
+skenaariovertailun kanssa) — muut välilehdet eivät saaneet vastausta.
+Siirto säikeeseen ei auttanut juuri GIL:n takia. Pääratkaisu,
+sijoittamattomien syyanalyysi ja skenaariovertailu ajetaan siksi
+`ProcessPoolExecutor`issa (`app/services/laskenta.py`), pääratkaisu ja
+vertailu rinnakkain. Syyanalyysi ratkaisee jokaiselle sijoittamattomalle
+tehtävälle yhden tehtävän ongelman per kuski ("ehtisikö tämä kuski
+edes yksinään?"), ja sille riittää 1 sekunnin aikaraja täyden aikarajan
+sijaan. Saman päivän päällekkäinen optimointi palauttaa 409:n, jotta
+kaksi ajolistaversiota ei synny kilpasilla. Vika löytyi toistamalla
+Windowsin `spawn`-käynnistys ja katsomalla jumittunutta prosessia
+py-spyllä. Regressiotestit pitävät GIL:ää kuten OR-Tools, ja ne kaatuvat
+säieversiolla.
 
 **Versiointi ja soft delete.** Jokainen optimointiajo tallentuu omana
 `ajolista_versio`-rivinään, eikä mitään kirjoiteta vanhan päälle.
@@ -185,11 +216,21 @@ npm run dev
 Avaa http://localhost:5173. Vaatii backendin käynnissä portissa 8000 —
 CORS on sallittu porttiin 5173 (`app/config.py: cors_origins`).
 
-Frontissa on kaksi välilehteä: **Rekisteri** (henkilöiden ja kuskien
-ylläpito) ja **Optimointi** (valitse kuvauspäivä, optimoi, katso
-tulos per kuski aikajanoineen, kustannuksineen ja skenaariovertailuineen).
-Päiväkohtaiset syöttönäkymät ovat työn alla — ks.
-[docs/tuotekartta.md](docs/tuotekartta.md).
+Frontin välilehdet kulkevat työn järjestyksessä:
+
+- **Rekisteri** — tuotannon henkilöt (näyttelijät, työryhmä) ja kuskit.
+  Osoitekenttä ehdottaa osoitteita kirjoittaessa.
+- **Pohjatiedot** — kuvauspäivän kokoaminen: call, lounas ja wrap,
+  päivän lokaatiot siirtymineen sekä mukana olevat henkilöt ja kuskit autoineen
+- **Tehtävät** — "Generoi tehtävät" call timeista, generoitujen ja käsin
+  lisättyjen erottelu sekä pikapohjat (lounashaku, kortit, lentokenttä)
+- **Optimointi** — optimoi päivä ja katso tulos per kuski aikajanoineen,
+  kustannuksineen, sijoittamattomien syineen ja skenaariovertailuineen.
+  Lisäksi julkaisu värikoodilla, A4-tulostusversio ilman kustannuksia,
+  versiodiffi ("Näyttelijä 2: nouto 7.40 → 8.10") ja "kuski pois pelistä"
+  -hätänappi, joka optimoi loppupäivän uudelleen kuitatut keikat
+  lukittuina. Päivän viimeisin ajolista näkyy heti, ja kesken oleva
+  laskenta jatkuu, vaikka sivun päivittäisi.
 
 Yksityiskohtaiset käynnistys- ja vianetsintäohjeet:
 [docs/ajuri-kaynnistys.md](docs/ajuri-kaynnistys.md).
@@ -200,7 +241,7 @@ Yksityiskohtaiset käynnistys- ja vianetsintäohjeet:
 pytest
 ```
 
-103 testiä, ajavat SQLite-muistikannalla (ei vaadi Postgresia).
+148 testiä, ajavat SQLite-muistikannalla (ei vaadi Postgresia).
 Ulkoiset palvelut korvataan deterministisillä toteutuksilla, joten
 testit eivät kosketa verkkoa.
 
@@ -217,11 +258,19 @@ Painopisteet:
   passivoitu myöhemmin — ei saa kaatua, ja keikan tiedot on silti
   näytettävä oikein
 - **Rajapintatestit**: CRUD, tehtävägenerointi, version julkaisu ja
-  värikoodaus, keikan kuittaus, roolisuodatus, geokoodaus ja sen
-  välimuisti, soft delete
+  värikoodaus, versiodiffi, keikan kuittaus, kuski pois pelistä,
+  roolisuodatus, geokoodaus ja sen välimuisti, osoite-ehdotukset, soft delete
+- **Rinnakkaisuus**: optimointi ei jumita muita pyyntöjä (testi pitää
+  GIL:ää kuten OR-Tools ja kaatuu, jos laskenta ajetaan säikeessä), ja
+  saman päivän päällekkäinen optimointi estetään
 
 Migraatiot ajetaan ja `alembic check` varmistetaan erikseen oikeaa
 PostgreSQL:ää vasten, koska testit luovat taulut suoraan malleista.
+
+**CI (GitHub Actions)** ajaa jokaiselle PR:lle kolme tarkistusta: pytest,
+Docker Compose -buildin migraatioineen ja `alembic check`ineen oikeaa
+PostgreSQL:ää vasten sekä frontin lintin ja buildin. `main` on suojattu,
+joten muutokset kulkevat aina PR:nä ja vihreän CI:n kautta.
 
 ## Roolit ja X-Rooli-header
 
@@ -234,7 +283,8 @@ henkilö-/kuskikohtaiset bufferi- ja aikapreferenssikentät
 `kuski.pickup_bufferi_min`, `kuski.tuntihinta_eur`) — nämä eivät katoa
 vain `null`:iksi, vaan puuttuvat JSON-vastauksesta kokonaan.
 
-Rooli luetaan toistaiseksi `X-Rooli`-headerista (`app/rooli.py`),
+Rooli luetaan toistaiseksi (kunnes ROADMAPin vaihe K on valmis)
+`X-Rooli`-headerista (`app/rooli.py`),
 oletuksena TUOTANTO jos header puuttuu tai sen arvo on tuntematon:
 
 ```
@@ -260,18 +310,25 @@ kuvaus (mitä kenttiä VOISI olla) on aina täysi.
 
 ## Tilanne ja jatkokehitys
 
-**Valmiina:** perusdatan ja päiväkohtaisen datan CRUD, tehtävägenerointi
-call timeista, optimointiservice kustannuslaskentoineen,
-reoptimoinnilla ja syyanalyysilla, versiointi ja värikoodaus, soft
-delete kaikelle datalle, palveluaikabufferit, roolipohjainen
-kenttäsuodatus, geokoodaus välimuisteineen, sekä frontin Rekisteri- ja
-Optimointi-välilehdet.
+**Valmiina:** perusdatan ja päiväkohtaisen datan CRUD ja niiden
+syöttönäkymät, tehtävägenerointi call timeista, optimointi
+kustannuslaskentoineen, syyanalyyseineen ja skenaariovertailuineen
+omassa prosessissaan, reoptimointi ("kuski pois pelistä"), versiointi,
+värikoodaus ja versiodiffi, tulostusversio, osoite-ehdotukset
+kirjoittaessa, soft delete kaikelle datalle, palveluaikabufferit,
+roolipohjainen kenttäsuodatus ja geokoodaus välimuisteineen.
 
-**Seuraavaksi:** päiväkohtaiset syöttönäkymät, osoitteen
-automaattitäydennys, tulostusversio ja versiodiffi. Kaikki jäljellä
-oleva työ on kuvattu järjestyksessä ja perusteluineen tiedostossa
-[docs/tuotekartta.md](docs/tuotekartta.md).
+**Seuraavaksi** ([ROADMAP.md](ROADMAP.md)):
 
-Optimoijan rajapinta, kustannusmalli, rajoitteet ja reunatapaukset on
-speksattu erikseen tiedostossa
-[docs/optimoija-spec.md](docs/optimoija-spec.md).
+1. **Kirjautuminen** — salasanat (argon2), JWT ja roolit tokenista
+   `X-Rooli`-headerin sijaan
+2. **Kovennukset** — tuotantoasetukset ilman oletussalaisuuksia,
+   pyyntörajoitukset ja syötteiden rajat
+3. **Julkaisu demoksi** — Render, demotila ja arkkitehtuurikuvaus
+4. **Kuskin mobiilinäkymä** — kuski näkee puhelimesta vain oman päivänsä
+5. **Excel-tuonti** rekisteriin esikatselulla
+
+Pidemmän aikavälin suunta ja perustelut ovat tiedostossa
+[docs/tuotekartta.md](docs/tuotekartta.md). Optimoijan rajapinta,
+kustannusmalli, rajoitteet ja reunatapaukset on speksattu erikseen
+tiedostossa [docs/optimoija-spec.md](docs/optimoija-spec.md).
