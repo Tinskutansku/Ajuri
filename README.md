@@ -41,10 +41,12 @@ kuljetustehtävästä useilla samanaikaisilla rajoitteilla:
 ## Esimerkkitulos
 
 Repossa on seed-skripti (`python -m app.seed`), joka luo yhden
-realistisen kuvauspäivän oikeilla pääkaupunkiseudun koordinaateilla: 16
-tehtävää (henkilönoutoja, paluukyytejä, lounashaku, rekvisiitan haku,
-lentokenttänouto aikaikkunalla) ja 5 kuskia eri sopimustyypeillä. Näin
-optimointia ajettiin oikeasti tällä datalla:
+realistisen kuvauspäivän oikeilla pääkaupunkiseudun koordinaateilla: 19
+tehtävää (7 henkilön noudot ja paluukyydit, lounashaku, rekvisiitan haku,
+lentokenttänouto aikaikkunalla) ja 5 kuskia eri sopimustyypeillä.
+Henkilökyydit on merkitty generoiduiksi, joten "Generoi tehtävät" korvaa
+ne eikä tuplaa niitä. Näin optimointia ajettiin oikeasti seedin aiemmalla
+16 tehtävän versiolla, jossa työryhmän kyydit olivat yhdistettyinä:
 
 | Kuskikokoonpano | Kokonaiskustannus |
 |---|---|

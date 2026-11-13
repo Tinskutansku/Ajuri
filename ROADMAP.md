@@ -97,7 +97,7 @@ kieltävät automaattitäydennyksen, joten Tanja valitsi Photonin
   - Pidä `pikkuLabel`-tyyli, jota Pohjatiedot jo käyttää (NIMI, OSOITE).
   - **Valmis kun:** lint + build läpi, ja PR:ssä on kuvakaappaus
     Rekisteristä sekä leveänä että mobiilileveydellä
-- `[PR #20]` **Optimointi-välilehti muistaa tuloksen (Tanjan toive 6.11.)**
+- `[x]` **Optimointi-välilehti muistaa tuloksen (Tanjan toive 6.11.)**
   Nyt sivun päivitys kesken laskennan hukkaa tuloksen näkyvistä, vaikka
   optimointi valmistuu backendissä ja tallentuu uudeksi ajolistaversioksi.
   - Kun päivä valitaan, näytä sen viimeisin tallennettu ajolista heti
