@@ -109,7 +109,7 @@ kieltävät automaattitäydennyksen, joten Tanja valitsi Photonin
     kustannuksia). Jos tämä vaatii muutoksia `response_filter.py`:hin, se on poikkeama.
   - **Valmis kun:** testi tilaendpointille (käynnissä / ei käynnissä), lint +
     build läpi, ja PR:ssä ohje: Optimoi → päivitä sivu → tulos ilmestyy
-- `[ ]` **Seed: noudot ja paluut generoiduiksi**
+- `[PR #21]` **Seed: noudot ja paluut generoiduiksi**
   `app/seed.py` luo seed-päivän noudot ja paluut käsin lisättyinä
   (`generoitu=false`), joten "Generoi tehtävät" lisää ne toiseen kertaan.
   Tuplat jäävät sijoittamatta ja hidastavat optimointia (30 sijoittamatonta 6.11.).
