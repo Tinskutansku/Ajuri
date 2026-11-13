@@ -76,6 +76,14 @@ Näitä et tee, vaikka tehtävä tuntuisi vaativan.
 - Tilanne, jossa ROADMAP-kohdan voi tulkita kahdella merkittävästi
   eri tavalla
 
+### Esihyväksynnät ROADMAPissa
+
+Jos ROADMAPin vaiheessa tai kohdassa on rivi **Esihyväksytty**, siinä
+nimetyt asiat saa tehdä kysymättä *siinä kohdassa*. Esihyväksyntä ei
+laajene muihin kohtiin eikä muihin kuin nimettyihin asioihin. Mainitse
+PR:ssä, mitä esihyväksyntää käytit (esim. "uusi riippuvuus PyJWT,
+esihyväksytty K-vaiheelle").
+
 ## Poikkeamaprotokolla
 
 Kun törmäät johonkin "Pysähdy ja kysy" -listan asiaan:
