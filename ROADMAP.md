@@ -97,7 +97,7 @@ kieltävät automaattitäydennyksen, joten Tanja valitsi Photonin
   - Pidä `pikkuLabel`-tyyli, jota Pohjatiedot jo käyttää (NIMI, OSOITE).
   - **Valmis kun:** lint + build läpi, ja PR:ssä on kuvakaappaus
     Rekisteristä sekä leveänä että mobiilileveydellä
-- `[PR #20]` **Optimointi-välilehti muistaa tuloksen (Tanjan toive 6.11.)**
+- `[x]` **Optimointi-välilehti muistaa tuloksen (Tanjan toive 6.11.)**
   Nyt sivun päivitys kesken laskennan hukkaa tuloksen näkyvistä, vaikka
   optimointi valmistuu backendissä ja tallentuu uudeksi ajolistaversioksi.
   - Kun päivä valitaan, näytä sen viimeisin tallennettu ajolista heti
@@ -109,7 +109,7 @@ kieltävät automaattitäydennyksen, joten Tanja valitsi Photonin
     kustannuksia). Jos tämä vaatii muutoksia `response_filter.py`:hin, se on poikkeama.
   - **Valmis kun:** testi tilaendpointille (käynnissä / ei käynnissä), lint +
     build läpi, ja PR:ssä ohje: Optimoi → päivitä sivu → tulos ilmestyy
-- `[ ]` **Seed: noudot ja paluut generoiduiksi**
+- `[PR #21]` **Seed: noudot ja paluut generoiduiksi**
   `app/seed.py` luo seed-päivän noudot ja paluut käsin lisättyinä
   (`generoitu=false`), joten "Generoi tehtävät" lisää ne toiseen kertaan.
   Tuplat jäävät sijoittamatta ja hidastavat optimointia (30 sijoittamatonta 6.11.).
