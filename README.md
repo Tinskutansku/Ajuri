@@ -332,14 +332,3 @@ Pidemmän aikavälin suunta ja perustelut ovat tiedostossa
 [docs/tuotekartta.md](docs/tuotekartta.md). Optimoijan rajapinta,
 kustannusmalli, rajoitteet ja reunatapaukset on speksattu erikseen
 tiedostossa [docs/optimoija-spec.md](docs/optimoija-spec.md).
-
-## Kehitystapa
-
-Kehitys etenee [ROADMAP.md](ROADMAP.md)-listan mukaan pieninä PR:inä.
-Osa kohdista toteutetaan Claude Coden ajastetuissa yöajoissa.
-[CLAUDE.md](CLAUDE.md) määrittelee, mitä agentti saa tehdä kysymättä ja
-mistä sen pitää pysähtyä kysymään. Tällaisia ovat esimerkiksi uudet
-riippuvuudet, tietokantamuutokset, optimoijan malli ja roolinäkyvyys.
-Poikkeamat tulevat PR:iin tai issueihin `needs-decision`-labelilla ja
-A/B-vaihtoehdoilla. Jokainen muutos kulkee saman CI:n ja katselmoinnin
-läpi ennen mergeä.
