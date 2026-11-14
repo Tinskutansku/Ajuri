@@ -80,6 +80,11 @@ class Kayttaja(Base):
     rooli: Mapped[KayttajaRooli] = mapped_column(Enum(KayttajaRooli))
     # rooli KUSKI: linkki kuski-tauluun, jotta näkee vain oman listansa
     kuski_id: Mapped[int | None] = mapped_column(ForeignKey("kuski.id"))
+    # argon2-hash (app/auth.py). None = käyttäjä ei voi kirjautua ennen
+    # kuin salasana asetetaan (python -m app.luo_kayttaja).
+    salasana_hash: Mapped[str | None] = mapped_column(String(255))
+    aktiivinen: Mapped[bool] = mapped_column(default=True)         # soft delete: passivoitu ei pääse sisään
+    viimeksi_kirjautunut: Mapped[datetime | None]
 
 
 class Henkilo(Base):

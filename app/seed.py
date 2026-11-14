@@ -23,11 +23,14 @@ from datetime import date, time
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth import hashaa_salasana, tarkista_salasana
 from app.database import AsyncSessionLocal
 from app.models import (
     Ajoneuvo,
     Henkilo,
     HenkiloTyyppi,
+    Kayttaja,
+    KayttajaRooli,
     Kuski,
     Kuvauspaiva,
     Lokaatio,
@@ -67,6 +70,15 @@ KOTI_KUSKI5 = ("Vuokraamo, Pasila, Helsinki", 60.1984, 24.9339)
 # Aiempien seed-versioiden käsin lisätyt henkilökyydit, joiden tilalle tulevat
 # nyt generoinnin mukaiset henkilökohtaiset noudot ja paluut. Uudelleenajo
 # poistaa nämä (soft delete), jotta vanha kanta korjautuu ilman tuplia.
+# Demokäyttäjät tunnetuilla salasanoilla (README, "Demokäyttäjät").
+# VAIN demo-/kehityskäyttöön - älä aja seediä oikean tuotannon kantaan.
+# (email, nimi, rooli, salasana); kuski-käyttäjä linkitetään Kuski 1:een.
+DEMOKAYTTAJAT = [
+    ("tuotanto@ajuri.example", "Demo Tuotanto", KayttajaRooli.TUOTANTO, "demo-tuotanto"),
+    ("koordi@ajuri.example", "Demo Koordinaattori", KayttajaRooli.KOORDI, "demo-koordi"),
+    ("kuski@ajuri.example", "Demo Kuski (Kuski 1)", KayttajaRooli.KUSKI, "demo-kuski"),
+]
+
 VANHAT_TEHTAVANIMET = [
     "Nouto: Näyttelijä 1 (maski)",
     "Nouto: Näyttelijä 4 (iltapäiväkohtaus)",
@@ -453,8 +465,27 @@ async def seed(db: AsyncSession) -> tuple[Tuotanto, Kuvauspaiva]:
         },
     )
 
+    await seed_kayttajat(db, tuotanto.id, kuski1.id)
+
     await db.commit()
     return tuotanto, paiva
+
+
+async def seed_kayttajat(db: AsyncSession, tuotanto_id: int, kuski_id: int) -> None:
+    """Demokäyttäjät. Hash vaihdetaan vain, jos nykyinen ei täsmää
+    demosalasanaan, jotta uudelleenajo ei turhaan muuta riviä."""
+    for email, nimi, rooli, salasana in DEMOKAYTTAJAT:
+        kayttaja = await upsert(
+            db, Kayttaja, email=email,
+            defaults={
+                "tuotanto_id": tuotanto_id, "nimi": nimi, "rooli": rooli,
+                "kuski_id": kuski_id if rooli == KayttajaRooli.KUSKI else None,
+                "aktiivinen": True,
+            },
+        )
+        if not tarkista_salasana(kayttaja.salasana_hash, salasana):
+            kayttaja.salasana_hash = hashaa_salasana(salasana)
+    await db.flush()
 
 
 async def main() -> None:
@@ -471,6 +502,9 @@ async def main() -> None:
         print(f"Kuvauspäivä: {paiva.pvm} (id={paiva.id}), call {paiva.call_time}, wrap {paiva.wrap_arvio}")
         print(f"Aktiivisia tehtäviä: {len(tehtavat)} "
               f"(generoituja {sum(t.generoitu for t in tehtavat)})")
+        print("Demokäyttäjät (email / salasana):")
+        for email, _nimi, _rooli, salasana in DEMOKAYTTAJAT:
+            print(f"  {email} / {salasana}")
         print("Valmis. Kokeile optimointia:")
         print(f"  POST /paivat/{paiva.id}/optimoi")
 
