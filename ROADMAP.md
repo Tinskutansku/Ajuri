@@ -40,7 +40,7 @@ viimeksi kirjautunut) ja sen Alembic-migraatio; roolin lukeminen tokenista
 `X-Rooli`-otsakkeen sijaan. Roolikohtainen kenttien näkyvyys
 (`response_filter.py`) pysyy ennallaan.
 
-### K1 `[ ]` Backend: kirjautuminen ja token
+### K1 `[PR #24]` Backend: kirjautuminen ja token
 - `kayttaja`-tauluun `salasana_hash` (argon2), `aktiivinen`,
   `viimeksi_kirjautunut` + migraatio
 - `POST /auth/kirjaudu` (email + salasana) → JWT (HS256, voimassa 12 h,
