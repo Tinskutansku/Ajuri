@@ -9,6 +9,7 @@ from app.config import settings
 from app.services.laskenta import sammuta_pooli
 from app.routers import (
     ajoneuvo,
+    auth,
     henkilo,
     keikat,
     kuski,
@@ -38,6 +39,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth.router)
 app.include_router(tuotanto.router)
 app.include_router(henkilo.router)
 app.include_router(kuski.router)

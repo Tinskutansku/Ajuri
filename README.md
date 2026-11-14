@@ -232,6 +232,34 @@ Frontin välilehdet kulkevat työn järjestyksessä:
   lukittuina. Päivän viimeisin ajolista näkyy heti, ja kesken oleva
   laskenta jatkuu, vaikka sivun päivittäisi.
 
+### Käyttäjät ja kirjautuminen
+
+Seed luo kolme demokäyttäjää demotuotantoon. Salasanat ovat julkisia,
+joten niitä käytetään vain demo- ja kehityskannassa:
+
+| Rooli | Email | Salasana |
+|---|---|---|
+| Tuotanto | `tuotanto@ajuri.example` | `demo-tuotanto` |
+| Koordinaattori | `koordi@ajuri.example` | `demo-koordi` |
+| Kuski (Kuski 1) | `kuski@ajuri.example` | `demo-kuski` |
+
+Oikean käyttäjän luonti (salasana kysytään piilotettuna, vähintään 10 merkkiä):
+
+```
+python -m app.luo_kayttaja --email tanja@example.com --rooli tuotanto
+python -m app.luo_kayttaja --email kuski@example.com --rooli kuski --kuski-id 3
+```
+
+`--tuotanto-id` tarvitaan vain, jos kannassa on useampi tuotanto.
+`POST /auth/kirjaudu` palauttaa 12 tuntia voimassa olevan JWT-tokenin, ja
+`GET /auth/mina` kertoo kirjautuneen käyttäjän (`Authorization: Bearer <token>`).
+Muut reitit eivät vielä vaadi kirjautumista (ROADMAP K2).
+
+Tokenin allekirjoitusavain luetaan ympäristömuuttujasta `JWT_SECRET`.
+Kehityksessä (`AJURI_YMPARISTO=dev`, oletus) käytetään sisäänrakennettua
+kehitysavainta, jos muuttujaa ei ole asetettu. Kun `AJURI_YMPARISTO=prod`,
+puuttuva `JWT_SECRET` kaataa käynnistyksen.
+
 Yksityiskohtaiset käynnistys- ja vianetsintäohjeet:
 [docs/ajuri-kaynnistys.md](docs/ajuri-kaynnistys.md).
 

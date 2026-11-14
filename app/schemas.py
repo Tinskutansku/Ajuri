@@ -7,7 +7,7 @@ from datetime import date, datetime, time
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.models import HenkiloTyyppi, SopimusTyyppi, TehtavaTyyppi
+from app.models import HenkiloTyyppi, KayttajaRooli, SopimusTyyppi, TehtavaTyyppi
 
 # ---------------------------------------------------------------------------
 # Tuotanto
@@ -460,3 +460,35 @@ class GeokoodausTulos(BaseModel):
     lokaatiot_paivitetty: int
     lokaatiot_epaonnistui: int
     jaljella: int  # koordinaatittomia rivejä joita EI yritetty tässä kutsussa
+
+
+# ---------------------------------------------------------------------------
+# Kirjautuminen (app/routers/auth.py)
+# ---------------------------------------------------------------------------
+
+
+class KirjautumisPyynto(BaseModel):
+    email: str = Field(min_length=1, max_length=200)
+    salasana: str = Field(min_length=1, max_length=200)
+
+
+class KayttajaRead(BaseModel):
+    """Käyttäjä ilman salasana-hashia."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    tuotanto_id: int
+    email: str
+    nimi: str
+    rooli: KayttajaRooli
+    kuski_id: int | None = None
+    aktiivinen: bool
+    viimeksi_kirjautunut: datetime | None = None
+
+
+class TokenVastaus(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    voimassa_s: int
+    kayttaja: KayttajaRead
