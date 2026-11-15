@@ -1,9 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models import Henkilo, Kuski, Lokaatio, Tuotanto
+from app.models import Henkilo, Kayttaja, Kuski, Lokaatio, Tuotanto
+from app.omistus import hae_tuotanto as hae_oma_tuotanto
+from app.rooli import kirjautunut_kayttaja
 from app.schemas import GeokoodausTulos, TuotantoCreate, TuotantoRead
 from app.services.geocoder_client import GeocoderClient, get_geocoder_client
 from app.services.geokoodaus_cache import normalisoi_avain, on_tuore_kielteinen_osuma, taydenna_koordinaatit
@@ -11,6 +13,9 @@ from app.services.geokoodaus_cache import normalisoi_avain, on_tuore_kielteinen_
 router = APIRouter(prefix="/tuotannot", tags=["tuotannot"])
 
 
+# HUOM (K2): luonti on ennallaan, vaikka käyttäjä näkee vain oman
+# tuotantonsa, eli luotu tuotanto ei näy luojalleen. Avoin päätös
+# (needs-decision K2:n PR:ssä): estetäänkö luonti API:sta kokonaan.
 @router.post("", response_model=TuotantoRead, status_code=201)
 async def luo_tuotanto(data: TuotantoCreate, db: AsyncSession = Depends(get_db)):
     tuotanto = Tuotanto(**data.model_dump())
@@ -21,26 +26,33 @@ async def luo_tuotanto(data: TuotantoCreate, db: AsyncSession = Depends(get_db))
 
 
 @router.get("", response_model=list[TuotantoRead])
-async def listaa_tuotannot(db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Tuotanto).order_by(Tuotanto.id))
+async def listaa_tuotannot(
+    db: AsyncSession = Depends(get_db),
+    kayttaja: Kayttaja = Depends(kirjautunut_kayttaja),
+):
+    result = await db.execute(
+        select(Tuotanto).where(Tuotanto.id == kayttaja.tuotanto_id).order_by(Tuotanto.id)
+    )
     return result.scalars().all()
 
 
 @router.get("/{tuotanto_id}", response_model=TuotantoRead)
-async def hae_tuotanto(tuotanto_id: int, db: AsyncSession = Depends(get_db)):
-    tuotanto = await db.get(Tuotanto, tuotanto_id)
-    if tuotanto is None:
-        raise HTTPException(status_code=404, detail="Tuotantoa ei löytynyt")
-    return tuotanto
+async def hae_tuotanto(
+    tuotanto_id: int,
+    db: AsyncSession = Depends(get_db),
+    kayttaja: Kayttaja = Depends(kirjautunut_kayttaja),
+):
+    return await hae_oma_tuotanto(db, tuotanto_id, kayttaja)
 
 
 @router.put("/{tuotanto_id}", response_model=TuotantoRead)
 async def paivita_tuotanto(
-    tuotanto_id: int, data: TuotantoCreate, db: AsyncSession = Depends(get_db)
+    tuotanto_id: int,
+    data: TuotantoCreate,
+    db: AsyncSession = Depends(get_db),
+    kayttaja: Kayttaja = Depends(kirjautunut_kayttaja),
 ):
-    tuotanto = await db.get(Tuotanto, tuotanto_id)
-    if tuotanto is None:
-        raise HTTPException(status_code=404, detail="Tuotantoa ei löytynyt")
+    tuotanto = await hae_oma_tuotanto(db, tuotanto_id, kayttaja)
     for kentta, arvo in data.model_dump().items():
         setattr(tuotanto, kentta, arvo)
     await db.commit()
@@ -49,10 +61,12 @@ async def paivita_tuotanto(
 
 
 @router.delete("/{tuotanto_id}", status_code=204)
-async def poista_tuotanto(tuotanto_id: int, db: AsyncSession = Depends(get_db)):
-    tuotanto = await db.get(Tuotanto, tuotanto_id)
-    if tuotanto is None:
-        raise HTTPException(status_code=404, detail="Tuotantoa ei löytynyt")
+async def poista_tuotanto(
+    tuotanto_id: int,
+    db: AsyncSession = Depends(get_db),
+    kayttaja: Kayttaja = Depends(kirjautunut_kayttaja),
+):
+    tuotanto = await hae_oma_tuotanto(db, tuotanto_id, kayttaja)
     await db.delete(tuotanto)
     await db.commit()
 
@@ -61,6 +75,7 @@ async def poista_tuotanto(tuotanto_id: int, db: AsyncSession = Depends(get_db)):
 async def geokoodaa_tuotanto(
     tuotanto_id: int, raja: int = 15,
     db: AsyncSession = Depends(get_db), geocoder: GeocoderClient = Depends(get_geocoder_client),
+    kayttaja: Kayttaja = Depends(kirjautunut_kayttaja),
 ):
     """Täydentää tuotannon kaikki koordinaatittomat henkilöt/kuskit/
     lokaatiot kerralla (Excel-tuonnin jälkeen), docs/tuotekartta.md
@@ -84,9 +99,7 @@ async def geokoodaa_tuotanto(
     joiden osoite ei ole koskaan geokoodattavissa (näitä ei lasketa
     jaljella:än vaan epaonnistui:in, koska niitä ei kannata yrittää
     koskaan uudestaan)."""
-    tuotanto = await db.get(Tuotanto, tuotanto_id)
-    if tuotanto is None:
-        raise HTTPException(status_code=404, detail="Tuotantoa ei löytynyt")
+    await hae_oma_tuotanto(db, tuotanto_id, kayttaja)
 
     def koordinaatiton_kysely(malli, osoite_k, lat_k, lon_k):
         osoite_sar = getattr(malli, osoite_k)

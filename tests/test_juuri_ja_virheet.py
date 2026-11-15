@@ -12,8 +12,17 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from app.auth import luo_token
 from app.database import get_db
 from app.main import TIETOKANTA_EI_SAATAVILLA, app
+from app.models import Kayttaja, KayttajaRooli
+
+# Kelvollinen token: kanta kaatuu vasta, kun käyttäjää haetaan tokenin
+# perusteella, joten virhe tulee samasta paikasta kuin ennen K2:ta.
+TOKEN_OTSAKE = {
+    "Authorization": "Bearer "
+    + luo_token(Kayttaja(id=1, tuotanto_id=1, rooli=KayttajaRooli.TUOTANTO))
+}
 
 
 async def test_juuri_palauttaa_tervetulovastauksen(client):
@@ -53,7 +62,9 @@ def kaatuva_client():
             yield _KaatuvaSessio(virhe)
 
         app.dependency_overrides[get_db] = override_get_db
-        return AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
+        return AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test", headers=TOKEN_OTSAKE
+        )
 
     yield _tee
     app.dependency_overrides.clear()
@@ -92,7 +103,7 @@ async def test_sqlalchemy_operational_error_palauttaa_503(tmp_path):
     app.dependency_overrides[get_db] = override_get_db
     try:
         async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
+            transport=ASGITransport(app=app), base_url="http://test", headers=TOKEN_OTSAKE
         ) as ac:
             vastaus = await ac.get("/tuotannot")
     finally:

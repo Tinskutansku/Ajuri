@@ -64,8 +64,9 @@ async def test_seed_merkitsee_henkilokyydit_generoiduiksi(db_session):
             assert t.nimi.split(": ", 1)[1] in KYYDITETTAVAT
 
 
-async def test_seed_ja_generointi_ei_tuota_tuplanoutoja(client, db_session):
-    _, paiva = await seed(db_session)
+async def test_seed_ja_generointi_ei_tuota_tuplanoutoja(client, db_session, kirjaudu):
+    tuotanto, paiva = await seed(db_session)
+    client.headers.update(await kirjaudu(tuotanto_id=tuotanto.id))  # K2: seedin tuotanto
     paiva_id = paiva.id
 
     vastaus = await client.post(f"/paivat/{paiva_id}/generoi-tehtavat")
@@ -79,8 +80,9 @@ async def test_seed_ja_generointi_ei_tuota_tuplanoutoja(client, db_session):
     assert {t.nimi for t in tehtavat if not t.generoitu} == ERIKOISKEIKAT
 
 
-async def test_seed_uudelleen_generoinnin_jalkeen_ei_luo_tuplia(client, db_session):
-    _, paiva = await seed(db_session)
+async def test_seed_uudelleen_generoinnin_jalkeen_ei_luo_tuplia(client, db_session, kirjaudu):
+    tuotanto, paiva = await seed(db_session)
+    client.headers.update(await kirjaudu(tuotanto_id=tuotanto.id))  # K2: seedin tuotanto
     paiva_id = paiva.id
     vastaus = await client.post(f"/paivat/{paiva_id}/generoi-tehtavat")
     assert vastaus.status_code == 200, vastaus.text
@@ -94,10 +96,11 @@ async def test_seed_uudelleen_generoinnin_jalkeen_ei_luo_tuplia(client, db_sessi
     _tarkista_ei_tuplia(await _aktiiviset(db_session, paiva_id))
 
 
-async def test_seed_korjaa_vanhan_kannan_tuplat(client, db_session):
+async def test_seed_korjaa_vanhan_kannan_tuplat(client, db_session, kirjaudu):
     """Vanha kanta: seedin aiempi versio loi henkilökyydit käsin lisättyinä
     ja generointi lisäsi samat toiseen kertaan. Uudelleenajo siivoaa."""
-    _, paiva = await seed(db_session)
+    tuotanto, paiva = await seed(db_session)
+    client.headers.update(await kirjaudu(tuotanto_id=tuotanto.id))  # K2: seedin tuotanto
     paiva_id = paiva.id
     tehtavat = await _aktiiviset(db_session, paiva_id)
 

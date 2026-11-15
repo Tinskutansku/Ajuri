@@ -16,6 +16,13 @@ from app.routers.auth import VAARA_TUNNUS
 SALASANA = "oikea-salasana-123"
 
 
+@pytest.fixture
+def client(anon_client):
+    """Kirjautumistestit tarvitsevat tyhjän kannan ja kirjautumattoman
+    asiakkaan: ne luovat omat tuotantonsa ja käyttäjänsä."""
+    return anon_client
+
+
 async def _kayttaja(db, *, email="tanja@example.com", rooli=KayttajaRooli.TUOTANTO,
                     salasana: str | None = SALASANA, aktiivinen=True, tuotanto_id=None,
                     kuski_id=None) -> Kayttaja:

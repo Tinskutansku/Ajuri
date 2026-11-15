@@ -2,10 +2,12 @@
 /kaytto-endpoint ja passiivisen rivin liittämisen esto paiva_henkilo/
 paiva_kuski/paiva_lokaatio-routereissa (docs/tuotekartta.md, vaihe F)."""
 
+from tests.apu_tuotanto import oma_tuotanto_id
+
 
 async def _luo_tuotanto(client) -> int:
-    vastaus = await client.post("/tuotannot", json={"nimi": "Testituotanto"})
-    return vastaus.json()["id"]
+    """K2: data luodaan kirjautuneen käyttäjän omaan tuotantoon."""
+    return await oma_tuotanto_id(client)
 
 
 async def _luo_paiva(client, tuotanto_id: int, *, pvm: str, paiva_nro: str) -> dict:

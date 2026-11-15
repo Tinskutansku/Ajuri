@@ -1,5 +1,6 @@
 """Testit POST /paivat/{id}/generoi-tehtavat (docs/tuotekartta.md, vaihe B)."""
 
+from tests.apu_tuotanto import hae_testituotanto
 from datetime import date, time
 
 from sqlalchemy import select
@@ -18,16 +19,13 @@ from app.models import (
     SopimusTyyppi,
     Tehtava,
     TehtavaTyyppi,
-    Tuotanto,
 )
 
 
 async def _seed_perusta(db_session, *, montako_lokaatiota: int = 2):
     """Tuotanto + kuvauspäivä (call 08:00, wrap 18:00) + N lokaatiota
     järjestyksessä. Palauttaa (paiva, [paiva_lokaatio, ...])."""
-    tuotanto = Tuotanto(nimi="Testituotanto")
-    db_session.add(tuotanto)
-    await db_session.flush()
+    tuotanto = await hae_testituotanto(db_session)
 
     paiva = Kuvauspaiva(
         tuotanto_id=tuotanto.id,
@@ -235,9 +233,7 @@ async def test_404_olematon_paiva(client):
 
 
 async def test_422_ei_lokaatioita(client, db_session):
-    tuotanto = Tuotanto(nimi="Testituotanto")
-    db_session.add(tuotanto)
-    await db_session.flush()
+    tuotanto = await hae_testituotanto(db_session)
     paiva = Kuvauspaiva(
         tuotanto_id=tuotanto.id, pvm=date(2026, 9, 15), call_time=time(8, 0),
     )
@@ -249,9 +245,7 @@ async def test_422_ei_lokaatioita(client, db_session):
 
 
 async def test_422_puuttuva_wrap_arvio_kun_paluu_tarvitaan(client, db_session):
-    tuotanto = Tuotanto(nimi="Testituotanto")
-    db_session.add(tuotanto)
-    await db_session.flush()
+    tuotanto = await hae_testituotanto(db_session)
     paiva = Kuvauspaiva(
         tuotanto_id=tuotanto.id, pvm=date(2026, 9, 15), call_time=time(8, 0),
     )

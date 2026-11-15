@@ -85,7 +85,8 @@ Docker Compose, GitHub Actions.
 app/
   models.py              SQLAlchemy 2.0 -mallit
   schemas.py             Pydantic v2 -skeemat (Create/Read erikseen)
-  rooli.py               Roolin lähde (X-Rooli-header, ks. alempana)
+  rooli.py               Kirjautunut käyttäjä ja rooli tokenista
+  omistus.py             Käyttäjä näkee vain oman tuotantonsa datan
   response_filter.py     Roolipohjainen kenttäsuodatus vastauksiin
   routers/               REST-endpointit (CRUD, generointi, optimointi,
                          versiot ja versiodiffi, osoite-ehdotukset)
@@ -253,7 +254,21 @@ python -m app.luo_kayttaja --email kuski@example.com --rooli kuski --kuski-id 3
 `--tuotanto-id` tarvitaan vain, jos kannassa on useampi tuotanto.
 `POST /auth/kirjaudu` palauttaa 12 tuntia voimassa olevan JWT-tokenin, ja
 `GET /auth/mina` kertoo kirjautuneen käyttäjän (`Authorization: Bearer <token>`).
-Muut reitit eivät vielä vaadi kirjautumista (ROADMAP K2).
+
+Kaikki muut reitit vaativat tokenin, paitsi `GET /`, `GET /health` ja
+dokumentaatio (`/docs`, `/openapi.json`). Ilman voimassa olevaa tokenia
+vastaus on 401. KUSKI-rooli saa vain lukea: kaikki muokkaukset (POST, PUT,
+PATCH, DELETE) antavat 403. Käyttäjä näkee vain oman tuotantonsa datan;
+toisen tuotannon rivit antavat 404 kuten olemattomat.
+
+```
+TOKEN=$(curl -s -X POST http://localhost:8000/auth/kirjaudu \
+  -H "Content-Type: application/json" \
+  -d '{"email":"tuotanto@ajuri.example","salasana":"demo-tuotanto"}' | jq -r .access_token)
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8000/henkilot
+```
+
+Swaggerissa (`/docs`) token annetaan Authorize-napista.
 
 Tokenin allekirjoitusavain luetaan ympäristömuuttujasta `JWT_SECRET`.
 Kehityksessä (`AJURI_YMPARISTO=dev`, oletus) käytetään sisäänrakennettua
@@ -300,10 +315,11 @@ Docker Compose -buildin migraatioineen ja `alembic check`ineen oikeaa
 PostgreSQL:ää vasten sekä frontin lintin ja buildin. `main` on suojattu,
 joten muutokset kulkevat aina PR:nä ja vihreän CI:n kautta.
 
-## Roolit ja X-Rooli-header
+## Roolit
 
 API:ssa on kolme roolia (`KayttajaRooli`-enum): TUOTANTO, KOORDI ja KUSKI.
-TUOTANTO ja KOORDI näkevät kaiken. KUSKI-roolilta piilotetaan
+TUOTANTO ja KOORDI näkevät kaiken ja saavat muokata. KUSKI saa vain
+lukea, ja siltä piilotetaan
 vastauksista kustannuskentät (`ajolista_versio.kokonaiskustannus_eur`,
 kuskikohtainen `lisakustannus_eur`, koko skenaariovertailu) sekä
 henkilö-/kuskikohtaiset bufferi- ja aikapreferenssikentät
@@ -311,23 +327,9 @@ henkilö-/kuskikohtaiset bufferi- ja aikapreferenssikentät
 `kuski.pickup_bufferi_min`, `kuski.tuntihinta_eur`) — nämä eivät katoa
 vain `null`:iksi, vaan puuttuvat JSON-vastauksesta kokonaan.
 
-Rooli luetaan toistaiseksi (kunnes ROADMAPin vaihe K on valmis)
-`X-Rooli`-headerista (`app/rooli.py`),
-oletuksena TUOTANTO jos header puuttuu tai sen arvo on tuntematon:
-
-```
-curl -H "X-Rooli: kuski" http://localhost:8000/henkilot
-```
-
-**Tämä ei ole turvaominaisuus.** `X-Rooli` on asiakkaan itsensä
-asettama header — kuka tahansa voi pyytää TUOTANTO-näkymän vaihtamalla
-headerin arvon. Se on väliaikainen UI:n karsintamekanismi ennen
-autentikointia (ks. [docs/tuotekartta.md](docs/tuotekartta.md) V2:
-"Käyttäjähallinta + autentikointi"). Kun JWT-pohjainen autentikointi
-rakennetaan, vain `app/rooli.py`:n `nykyinen_rooli`-funktion sisältö
-vaihtuu (header → JWT-claim) — itse kenttäsuodatus
-(`app/response_filter.py`) ja kaikki sitä käyttävät reitittimet pysyvät
-koskemattomina.
+Rooli luetaan kirjautumistokenista (`app/rooli.py`). Vanhaa
+`X-Rooli`-headeria ei enää lueta. Kenttäsuodatus on yhdessä paikassa,
+`app/response_filter.py`.
 
 Myös huomio: **Swagger-dokumentaatio (`/docs`) näyttää aina kaikki
 kentät roolista riippumatta** — endpointtien `response_model` on jätetty
@@ -348,8 +350,8 @@ roolipohjainen kenttäsuodatus ja geokoodaus välimuisteineen.
 
 **Seuraavaksi** ([ROADMAP.md](ROADMAP.md)):
 
-1. **Kirjautuminen** — salasanat (argon2), JWT ja roolit tokenista
-   `X-Rooli`-headerin sijaan
+1. **Kirjautuminen** — backend valmis (salasanat, JWT, roolit ja
+   tuotantokohtainen näkyvyys tokenista); kirjautumissivu frontendiin
 2. **Kovennukset** — tuotantoasetukset ilman oletussalaisuuksia,
    pyyntörajoitukset ja syötteiden rajat
 3. **Julkaisu demoksi** — Render, demotila ja arkkitehtuurikuvaus

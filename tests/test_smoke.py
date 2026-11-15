@@ -1,13 +1,17 @@
 """Savutesti: luo tuotanto, lisää henkilö, hae lista."""
 
 
-async def test_luo_tuotanto_ja_henkilo(client):
+async def test_luo_tuotanto_ja_henkilo(client, kirjaudu):
     vastaus = await client.post(
         "/tuotannot", json={"nimi": "Testituotanto", "tuntihinta_eur": 20.0}
     )
     assert vastaus.status_code == 201
     tuotanto = vastaus.json()
     assert tuotanto["nimi"] == "Testituotanto"
+
+    # K2: käyttäjä näkee vain oman tuotantonsa, joten uuteen tuotantoon
+    # kirjaudutaan sen omalla käyttäjällä.
+    client.headers.update(await kirjaudu(tuotanto_id=tuotanto["id"]))
 
     vastaus = await client.post(
         "/henkilot",

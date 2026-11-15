@@ -1,9 +1,7 @@
 """Kirjautuminen: salasanojen hashays (argon2) ja JWT-tokenit (HS256).
 
-Token sisältää käyttäjä-id:n (`sub`), roolin ja tuotanto-id:n. Kohdassa
-K2 `app/rooli.py:nykyinen_rooli` alkaa lukea roolin tästä tokenista
-X-Rooli-otsakkeen sijaan; tässä vaiheessa token on käytössä vain
-`/auth`-reiteillä.
+Token sisältää käyttäjä-id:n (`sub`), roolin ja tuotanto-id:n. Reitit
+lukevat sen `app/rooli.py`:n dependencyjen kautta.
 """
 
 from __future__ import annotations

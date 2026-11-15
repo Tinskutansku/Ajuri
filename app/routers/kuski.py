@@ -3,9 +3,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models import KayttajaRooli, Kuski, Kuvauspaiva, PaivaKuski
+from app.models import Kayttaja, KayttajaRooli, Kuski, Kuvauspaiva, PaivaKuski
+from app.omistus import hae_tuotannon_rivi, rajaa_tuotantoon, tarkista_tuotanto
+from app.rooli import kirjautunut_kayttaja, nykyinen_rooli
 from app.response_filter import KUSKI_KUSKILTA_PIILOTETTAVAT, json_vastaus
-from app.rooli import nykyinen_rooli
 from app.schemas import KayttoPaiva, KuskiCreate, KuskiRead
 from app.services.geocoder_client import GeocoderClient, get_geocoder_client
 from app.services.geokoodaus_cache import paivita_koordinaatit_put, taydenna_koordinaatit
@@ -19,9 +20,11 @@ _KOTI_KENTAT = {"osoite_kentta": "koti_osoite", "lat_kentta": "koti_lat", "lon_k
 async def luo_kuski(
     data: KuskiCreate,
     db: AsyncSession = Depends(get_db),
+    kayttaja: Kayttaja = Depends(kirjautunut_kayttaja),
     rooli: KayttajaRooli = Depends(nykyinen_rooli),
     geocoder: GeocoderClient = Depends(get_geocoder_client),
 ):
+    tarkista_tuotanto(data.tuotanto_id, kayttaja)
     kuski = Kuski(**data.model_dump())
     await taydenna_koordinaatit(db, geocoder, kuski, **_KOTI_KENTAT)
     db.add(kuski)
@@ -37,11 +40,12 @@ async def listaa_kuskit(
     tuotanto_id: int | None = None,
     sisalla_passiiviset: bool = False,
     db: AsyncSession = Depends(get_db),
+    kayttaja: Kayttaja = Depends(kirjautunut_kayttaja),
     rooli: KayttajaRooli = Depends(nykyinen_rooli),
 ):
-    stmt = select(Kuski).order_by(Kuski.id)
+    stmt = rajaa_tuotantoon(select(Kuski).order_by(Kuski.id), Kuski, kayttaja)
     if tuotanto_id is not None:
-        stmt = stmt.where(Kuski.tuotanto_id == tuotanto_id)
+        tarkista_tuotanto(tuotanto_id, kayttaja)
     if not sisalla_passiiviset:
         stmt = stmt.where(Kuski.aktiivinen.is_(True))
     result = await db.execute(stmt)
@@ -56,19 +60,22 @@ async def hae_kuski(
     kuski_id: int,
     sisalla_passiiviset: bool = False,
     db: AsyncSession = Depends(get_db),
+    kayttaja: Kayttaja = Depends(kirjautunut_kayttaja),
     rooli: KayttajaRooli = Depends(nykyinen_rooli),
 ):
-    kuski = await db.get(Kuski, kuski_id)
-    if kuski is None or (not sisalla_passiiviset and not kuski.aktiivinen):
+    kuski = await hae_tuotannon_rivi(db, Kuski, kuski_id, kayttaja, "Kuskia ei löytynyt")
+    if not sisalla_passiiviset and not kuski.aktiivinen:
         raise HTTPException(status_code=404, detail="Kuskia ei löytynyt")
     return json_vastaus(KuskiRead.model_validate(kuski), rooli, KUSKI_KUSKILTA_PIILOTETTAVAT)
 
 
 @router.get("/{kuski_id}/kaytto", response_model=list[KayttoPaiva])
-async def hae_kuski_kaytto(kuski_id: int, db: AsyncSession = Depends(get_db)):
-    kuski = await db.get(Kuski, kuski_id)
-    if kuski is None:
-        raise HTTPException(status_code=404, detail="Kuskia ei löytynyt")
+async def hae_kuski_kaytto(
+    kuski_id: int,
+    db: AsyncSession = Depends(get_db),
+    kayttaja: Kayttaja = Depends(kirjautunut_kayttaja),
+):
+    await hae_tuotannon_rivi(db, Kuski, kuski_id, kayttaja, "Kuskia ei löytynyt")
     stmt = (
         select(Kuvauspaiva.id, Kuvauspaiva.pvm, Kuvauspaiva.paiva_nro)
         .join(PaivaKuski, PaivaKuski.paiva_id == Kuvauspaiva.id)
@@ -84,16 +91,16 @@ async def paivita_kuski(
     kuski_id: int,
     data: KuskiCreate,
     db: AsyncSession = Depends(get_db),
+    kayttaja: Kayttaja = Depends(kirjautunut_kayttaja),
     rooli: KayttajaRooli = Depends(nykyinen_rooli),
     geocoder: GeocoderClient = Depends(get_geocoder_client),
 ):
-    kuski = await db.get(Kuski, kuski_id)
-    if kuski is None:
-        raise HTTPException(status_code=404, detail="Kuskia ei löytynyt")
+    kuski = await hae_tuotannon_rivi(db, Kuski, kuski_id, kayttaja, "Kuskia ei löytynyt")
 
     annetut_kentat = data.model_fields_set
     edellinen_osoite, edellinen_lat, edellinen_lon = kuski.koti_osoite, kuski.koti_lat, kuski.koti_lon
 
+    tarkista_tuotanto(data.tuotanto_id, kayttaja)
     for kentta, arvo in data.model_dump().items():
         setattr(kuski, kentta, arvo)
 
@@ -107,9 +114,11 @@ async def paivita_kuski(
 
 
 @router.delete("/{kuski_id}", status_code=204)
-async def poista_kuski(kuski_id: int, db: AsyncSession = Depends(get_db)):
-    kuski = await db.get(Kuski, kuski_id)
-    if kuski is None:
-        raise HTTPException(status_code=404, detail="Kuskia ei löytynyt")
+async def poista_kuski(
+    kuski_id: int,
+    db: AsyncSession = Depends(get_db),
+    kayttaja: Kayttaja = Depends(kirjautunut_kayttaja),
+):
+    kuski = await hae_tuotannon_rivi(db, Kuski, kuski_id, kayttaja, "Kuskia ei löytynyt")
     kuski.aktiivinen = False
     await db.commit()

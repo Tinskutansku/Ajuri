@@ -9,6 +9,7 @@ kuskin kuitatut (ajetut) keikat pysyvät lukittuina hänelle, ja vain hänen
 ajamattomat keikkansa siirtyvät muille. Paluu peliin toimii samalla tavalla.
 """
 
+from tests.apu_tuotanto import hae_testituotanto
 from datetime import date, time
 
 from sqlalchemy import update
@@ -24,7 +25,6 @@ from app.models import (
     SopimusTyyppi,
     Tehtava,
     TehtavaTyyppi,
-    Tuotanto,
 )
 from app.services.router_client import get_router_client
 from tests.test_optimointi_router import FakeRouterClient
@@ -33,9 +33,7 @@ from tests.test_optimointi_router import FakeRouterClient
 async def _seed(db_session):
     """Kaksi kuskia. Kuski A:lla pohjaversiossa kaksi keikkaa: aamun nouto
     (kuitattu, eli ajettu) ja iltapäivän nouto (ei vielä ajettu)."""
-    tuotanto = Tuotanto(nimi="Testituotanto", tuntihinta_eur=20.0)
-    db_session.add(tuotanto)
-    await db_session.flush()
+    tuotanto = await hae_testituotanto(db_session, tuntihinta_eur=20.0)
 
     paiva = Kuvauspaiva(tuotanto_id=tuotanto.id, pvm=date(2026, 7, 10), call_time=time(8, 0))
     db_session.add(paiva)

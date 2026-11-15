@@ -4,13 +4,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db
-from app.models import AjolistaVersio, KayttajaRooli, Keikka, PaivaKuski
+from app.models import AjolistaVersio, Kayttaja, KayttajaRooli, Keikka, PaivaKuski
+from app.omistus import hae_paiva, rajaa_paivan_kautta
+from app.omistus import hae_versio as hae_oma_versio
 from app.response_filter import (
     AJOLISTAVERSIO_KUSKILTA_PIILOTETTAVAT,
     VERSIODIFF_KUSKILTA_PIILOTETTAVAT,
     json_vastaus,
 )
-from app.rooli import nykyinen_rooli
+from app.rooli import kirjautunut_kayttaja, nykyinen_rooli
 from app.schemas import AjolistaVersioRead, DiffKeikka, DiffKuski, VersioDiff
 
 router = APIRouter(prefix="/versiot", tags=["versiot"])
@@ -30,11 +32,10 @@ def _seuraava_tunniste(kaytetyt_lkm: int) -> str:
 async def julkaise_versio(
     versio_id: int,
     db: AsyncSession = Depends(get_db),
+    kayttaja: Kayttaja = Depends(kirjautunut_kayttaja),
     rooli: KayttajaRooli = Depends(nykyinen_rooli),
 ):
-    versio = await db.get(AjolistaVersio, versio_id)
-    if versio is None:
-        raise HTTPException(status_code=404, detail="Versiota ei löytynyt")
+    versio = await hae_oma_versio(db, versio_id, kayttaja)
 
     await db.execute(
         update(AjolistaVersio)
@@ -68,10 +69,14 @@ async def listaa_versiot(
     paiva_id: int | None = None,
     julkaistu: bool | None = None,
     db: AsyncSession = Depends(get_db),
+    kayttaja: Kayttaja = Depends(kirjautunut_kayttaja),
     rooli: KayttajaRooli = Depends(nykyinen_rooli),
 ):
-    stmt = select(AjolistaVersio).order_by(AjolistaVersio.versio_nro)
+    stmt = rajaa_paivan_kautta(
+        select(AjolistaVersio).order_by(AjolistaVersio.versio_nro), AjolistaVersio, kayttaja
+    )
     if paiva_id is not None:
+        await hae_paiva(db, paiva_id, kayttaja)
         stmt = stmt.where(AjolistaVersio.paiva_id == paiva_id)
     if julkaistu is not None:
         stmt = stmt.where(AjolistaVersio.julkaistu.is_(julkaistu))
@@ -85,11 +90,10 @@ async def listaa_versiot(
 async def hae_versio(
     versio_id: int,
     db: AsyncSession = Depends(get_db),
+    kayttaja: Kayttaja = Depends(kirjautunut_kayttaja),
     rooli: KayttajaRooli = Depends(nykyinen_rooli),
 ):
-    versio = await db.get(AjolistaVersio, versio_id)
-    if versio is None:
-        raise HTTPException(status_code=404, detail="Versiota ei löytynyt")
+    versio = await hae_oma_versio(db, versio_id, kayttaja)
     return json_vastaus(
         AjolistaVersioRead.model_validate(versio), rooli, AJOLISTAVERSIO_KUSKILTA_PIILOTETTAVAT
     )
@@ -194,10 +198,14 @@ async def versioiden_diff(
     versio_a_id: int,
     versio_b_id: int,
     db: AsyncSession = Depends(get_db),
+    kayttaja: Kayttaja = Depends(kirjautunut_kayttaja),
     rooli: KayttajaRooli = Depends(nykyinen_rooli),
 ):
     """Mitä muuttui versiosta a versioon b (a = vanha, b = uusi).
     Molempien versioiden pitää olla samalta päivältä."""
+    # Omistus ensin, jotta toisen tuotannon versio antaa 404:n eikä 400:aa.
+    await hae_oma_versio(db, versio_a_id, kayttaja, f"Versiota {versio_a_id} ei löytynyt")
+    await hae_oma_versio(db, versio_b_id, kayttaja, f"Versiota {versio_b_id} ei löytynyt")
     a = await _versio_keikkoineen(db, versio_a_id)
     b = await _versio_keikkoineen(db, versio_b_id)
     if a.paiva_id != b.paiva_id:
