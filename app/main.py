@@ -1,11 +1,12 @@
 import logging
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import InterfaceError, OperationalError
 
 from app.config import settings
+from app.rooli import vaadi_kirjautuminen
 from app.services.laskenta import sammuta_pooli
 from app.routers import (
     ajoneuvo,
@@ -39,22 +40,31 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Kirjautuminen: /auth/kirjaudu on avoin, /auth/mina tarkistaa tokenin itse.
 app.include_router(auth.router)
-app.include_router(tuotanto.router)
-app.include_router(henkilo.router)
-app.include_router(kuski.router)
-app.include_router(ajoneuvo.router)
-app.include_router(lokaatio.router)
-app.include_router(kuvauspaiva.router)
-app.include_router(paiva_lokaatio.router)
-app.include_router(paiva_henkilo.router)
-app.include_router(paiva_kuski.router)
-app.include_router(tehtava.router)
-app.include_router(tehtava_generointi.router)
-app.include_router(versiot.router)
-app.include_router(keikat.router)
-app.include_router(optimointi.router)
-app.include_router(osoitteet.router)
+
+# Kaikki muut reitit vaativat voimassa olevan tokenin, ja KUSKI-rooli saa
+# vain lukea (ROADMAP K2). Avoimia ovat lisäksi GET / ja GET /health
+# alla sekä FastAPIn omat /docs ja /openapi.json.
+_KIRJAUTUNEILLE = [Depends(vaadi_kirjautuminen)]
+for _reititin in (
+    tuotanto.router,
+    henkilo.router,
+    kuski.router,
+    ajoneuvo.router,
+    lokaatio.router,
+    kuvauspaiva.router,
+    paiva_lokaatio.router,
+    paiva_henkilo.router,
+    paiva_kuski.router,
+    tehtava.router,
+    tehtava_generointi.router,
+    versiot.router,
+    keikat.router,
+    optimointi.router,
+    osoitteet.router,
+):
+    app.include_router(_reititin, dependencies=_KIRJAUTUNEILLE)
 
 
 # Tietokantayhteyden katkos -> 503 selkeällä viestillä raa'an 500-

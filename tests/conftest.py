@@ -1,13 +1,15 @@
-from collections.abc import AsyncGenerator
+import itertools
+from collections.abc import AsyncGenerator, Awaitable, Callable
 
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
+from app.auth import luo_token
 from app.database import get_db
 from app.main import app
-from app.models import Base
+from app.models import Base, Kayttaja, KayttajaRooli, Tuotanto
 from app.services.geocoder_client import GeocoderClient, get_geocoder_client
 from app.services.osoite_ehdottaja import Ehdotus, OsoiteEhdottaja, get_osoite_ehdottaja
 
@@ -51,7 +53,8 @@ async def engine() -> AsyncGenerator[AsyncEngine, None]:
 
 
 @pytest_asyncio.fixture
-async def client(engine: AsyncEngine) -> AsyncGenerator[AsyncClient, None]:
+async def sovellus(engine: AsyncEngine) -> AsyncGenerator[None, None]:
+    """Asettaa testikannan ja feikkipalvelut sovellukselle."""
     test_session_local = async_sessionmaker(engine, expire_on_commit=False)
 
     async def override_get_db() -> AsyncGenerator[AsyncSession, None]:
@@ -66,12 +69,77 @@ async def client(engine: AsyncEngine) -> AsyncGenerator[AsyncClient, None]:
     # get_router_client:lle).
     app.dependency_overrides[get_geocoder_client] = lambda: FakeGeocoder()
     app.dependency_overrides[get_osoite_ehdottaja] = lambda: FakeOsoiteEhdottaja()
+    yield
+    app.dependency_overrides.clear()
 
+
+@pytest_asyncio.fixture
+async def anon_client(sovellus) -> AsyncGenerator[AsyncClient, None]:
+    """Kirjautumaton asiakas (ei Authorization-otsaketta)."""
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
 
-    app.dependency_overrides.clear()
+
+@pytest_asyncio.fixture
+async def tuotanto_id(engine: AsyncEngine) -> int:
+    """Kirjautuneen testikäyttäjän oma tuotanto. Testit, jotka luovat
+    dataa kantaan suoraan, käyttävät tätä (ks. tests/apu_tuotanto.py)."""
+    async with async_sessionmaker(engine, expire_on_commit=False)() as s:
+        tuotanto = Tuotanto(nimi="Testituotanto")
+        s.add(tuotanto)
+        await s.commit()
+        return tuotanto.id
+
+
+Kirjaudu = Callable[..., Awaitable[dict[str, str]]]
+
+
+@pytest_asyncio.fixture
+async def kirjaudu(engine: AsyncEngine, tuotanto_id: int) -> Kirjaudu:
+    """Tehdas: luo käyttäjän annetulla roolilla ja palauttaa
+    Authorization-otsakkeen. Oletuksena testikäyttäjän tuotanto.
+
+        otsakkeet = await kirjaudu(KayttajaRooli.KUSKI)
+        await client.get("/henkilot", headers=otsakkeet)
+    """
+    laskuri = itertools.count(1)
+
+    async def _kirjaudu(
+        rooli: KayttajaRooli = KayttajaRooli.TUOTANTO,
+        *,
+        tuotanto_id: int = tuotanto_id,
+        kuski_id: int | None = None,
+    ) -> dict[str, str]:
+        async with async_sessionmaker(engine, expire_on_commit=False)() as s:
+            kayttaja = Kayttaja(
+                tuotanto_id=tuotanto_id, email=f"testi{next(laskuri)}@ajuri.test",
+                nimi=f"Testi {rooli.value}", rooli=rooli, kuski_id=kuski_id, aktiivinen=True,
+            )
+            s.add(kayttaja)
+            await s.commit()
+            return {"Authorization": f"Bearer {luo_token(kayttaja)}"}
+
+    return _kirjaudu
+
+
+@pytest_asyncio.fixture
+async def client(sovellus, kirjaudu: Kirjaudu) -> AsyncGenerator[AsyncClient, None]:
+    """Asiakas, joka on kirjautunut TUOTANTO-roolilla testituotantoon."""
+    transport = ASGITransport(app=app)
+    otsakkeet = await kirjaudu(KayttajaRooli.TUOTANTO)
+    async with AsyncClient(transport=transport, base_url="http://test", headers=otsakkeet) as ac:
+        yield ac
+
+
+@pytest_asyncio.fixture
+async def koordi_otsakkeet(kirjaudu: Kirjaudu) -> dict[str, str]:
+    return await kirjaudu(KayttajaRooli.KOORDI)
+
+
+@pytest_asyncio.fixture
+async def kuski_otsakkeet(kirjaudu: Kirjaudu) -> dict[str, str]:
+    return await kirjaudu(KayttajaRooli.KUSKI)
 
 
 @pytest_asyncio.fixture

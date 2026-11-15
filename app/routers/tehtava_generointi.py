@@ -23,13 +23,15 @@ from app.database import get_db
 from app.models import (
     AjolistaVersio,
     Henkilo,
-    Kuvauspaiva,
+    Kayttaja,
     Lokaatio,
     PaivaHenkilo,
     PaivaLokaatio,
     Tehtava,
     TehtavaTyyppi,
 )
+from app.omistus import hae_paiva
+from app.rooli import kirjautunut_kayttaja
 from app.schemas import TehtavaGenerointiVastaus
 
 router = APIRouter(tags=["tehtava-generointi"])
@@ -50,10 +52,12 @@ def _lisaa_minuutteja(klo: time, minuutit: int) -> time:
 
 
 @router.post("/paivat/{paiva_id}/generoi-tehtavat", response_model=TehtavaGenerointiVastaus)
-async def generoi_tehtavat(paiva_id: int, db: AsyncSession = Depends(get_db)):
-    paiva = await db.get(Kuvauspaiva, paiva_id)
-    if paiva is None:
-        raise HTTPException(status_code=404, detail="Kuvauspäivää ei löytynyt")
+async def generoi_tehtavat(
+    paiva_id: int,
+    db: AsyncSession = Depends(get_db),
+    kayttaja: Kayttaja = Depends(kirjautunut_kayttaja),
+):
+    paiva = await hae_paiva(db, paiva_id, kayttaja)
 
     lokaatiot = (
         (

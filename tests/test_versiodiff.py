@@ -1,6 +1,7 @@
 """Testit GET /versiot/{a}/diff/{b} (ROADMAP J1). Versiot ja keikat
 seedataan suoraan ORM:lla kuten test_versiot_ja_keikat.py:ssä."""
 
+from tests.apu_tuotanto import hae_testituotanto
 from datetime import date, time
 
 from app.models import (
@@ -12,7 +13,6 @@ from app.models import (
     SopimusTyyppi,
     Tehtava,
     TehtavaTyyppi,
-    Tuotanto,
 )
 
 
@@ -26,9 +26,7 @@ async def _seed(db_session):
     Lounashaku        Tiina 11:00-11:30   -                 -> poistunut
     Lentokenttä       -                   Pekka 15:25-16:10 -> uusi
     """
-    tuotanto = Tuotanto(nimi="Testituotanto")
-    db_session.add(tuotanto)
-    await db_session.flush()
+    tuotanto = await hae_testituotanto(db_session)
     paiva = Kuvauspaiva(tuotanto_id=tuotanto.id, pvm=date(2026, 7, 10), call_time=time(8, 0))
     db_session.add(paiva)
     await db_session.flush()
@@ -144,10 +142,10 @@ async def test_diff_kustannukset_tuotannolle(client, db_session):
     assert data["kustannusmuutos_eur"] == 120.5
 
 
-async def test_diff_kuski_ei_nae_kustannusmuutoksia(client, db_session):
+async def test_diff_kuski_ei_nae_kustannusmuutoksia(client, db_session, kuski_otsakkeet):
     ids = await _seed(db_session)
     vastaus = await client.get(
-        f"/versiot/{ids['v1']}/diff/{ids['v2']}", headers={"X-Rooli": "kuski"}
+        f"/versiot/{ids['v1']}/diff/{ids['v2']}", headers=kuski_otsakkeet
     )
     assert vastaus.status_code == 200
     data = vastaus.json()

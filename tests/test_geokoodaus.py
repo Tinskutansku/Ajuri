@@ -5,12 +5,13 @@ VAIHE 1: app.services.geokoodaus_cache-moduulin suorat yksikkötestit
 VAIHE 2: reitittimien (henkilot/kuskit/lokaatiot POST+PUT,
 POST /tuotannot/{id}/geokoodaa) läpi kulkevat testit HTTP-clientilla."""
 
+from tests.apu_tuotanto import hae_testituotanto, oma_tuotanto_id
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 
 from app.main import app
-from app.models import Geokoodi, Henkilo, HenkiloTyyppi, Kuski, Lokaatio, SopimusTyyppi, Tuotanto
+from app.models import Geokoodi, Henkilo, HenkiloTyyppi, Kuski, Lokaatio, SopimusTyyppi
 from app.services.geocoder_client import get_geocoder_client
 from app.services.geokoodaus_cache import geokoodaa_valimuistilla
 from tests.conftest import FakeGeocoder
@@ -128,8 +129,7 @@ def _kayta_geocoderia(geocoder) -> None:
 
 
 async def test_henkilo_geokoodataan_tallennuksessa(client):
-    vastaus = await client.post("/tuotannot", json={"nimi": "Testituotanto"})
-    tuotanto_id = vastaus.json()["id"]
+    tuotanto_id = await oma_tuotanto_id(client)
     _kayta_geocoderia(FakeGeocoder({"Testiosoite 1": (60.1, 24.9)}))
 
     vastaus = await client.post(
@@ -143,8 +143,7 @@ async def test_henkilo_geokoodataan_tallennuksessa(client):
 
 
 async def test_henkilo_kasin_annettuja_koordinaatteja_ei_ylikirjoiteta(client):
-    vastaus = await client.post("/tuotannot", json={"nimi": "Testituotanto"})
-    tuotanto_id = vastaus.json()["id"]
+    tuotanto_id = await oma_tuotanto_id(client)
     geocoder = FakeGeocoder({"Testiosoite 1": (60.1, 24.9)})
     _kayta_geocoderia(geocoder)
 
@@ -163,8 +162,7 @@ async def test_henkilo_kasin_annettuja_koordinaatteja_ei_ylikirjoiteta(client):
 
 
 async def test_henkilo_geokoodaus_epaonnistuu_ei_esta_tallennusta(client):
-    vastaus = await client.post("/tuotannot", json={"nimi": "Testituotanto"})
-    tuotanto_id = vastaus.json()["id"]
+    tuotanto_id = await oma_tuotanto_id(client)
     _kayta_geocoderia(FakeGeocoder({}))
 
     vastaus = await client.post(
@@ -178,8 +176,7 @@ async def test_henkilo_geokoodaus_epaonnistuu_ei_esta_tallennusta(client):
 
 
 async def test_henkilo_osoitteen_muutos_paivittaa_koordinaatit(client):
-    vastaus = await client.post("/tuotannot", json={"nimi": "Testituotanto"})
-    tuotanto_id = vastaus.json()["id"]
+    tuotanto_id = await oma_tuotanto_id(client)
     geocoder = FakeGeocoder({"Osoite A": (60.1, 24.1), "Osoite B": (61.2, 25.2)})
     _kayta_geocoderia(geocoder)
 
@@ -201,8 +198,7 @@ async def test_henkilo_osoitteen_muutos_paivittaa_koordinaatit(client):
 
 
 async def test_put_annettu_lat_lon_voittaa_geokoodauksen(client):
-    vastaus = await client.post("/tuotannot", json={"nimi": "Testituotanto"})
-    tuotanto_id = vastaus.json()["id"]
+    tuotanto_id = await oma_tuotanto_id(client)
     geocoder = FakeGeocoder({"Osoite A": (60.1, 24.1), "Osoite B": (61.2, 25.2)})
     _kayta_geocoderia(geocoder)
 
@@ -228,8 +224,7 @@ async def test_put_annettu_lat_lon_voittaa_geokoodauksen(client):
 
 
 async def test_put_sama_osoite_ei_kentta_mukana_sailyttaa_koordinaatit(client):
-    vastaus = await client.post("/tuotannot", json={"nimi": "Testituotanto"})
-    tuotanto_id = vastaus.json()["id"]
+    tuotanto_id = await oma_tuotanto_id(client)
     geocoder = FakeGeocoder({"Osoite A": (60.1, 24.1)})
     _kayta_geocoderia(geocoder)
 
@@ -252,8 +247,7 @@ async def test_put_sama_osoite_ei_kentta_mukana_sailyttaa_koordinaatit(client):
 
 
 async def test_kuski_geokoodataan_tallennuksessa(client):
-    vastaus = await client.post("/tuotannot", json={"nimi": "Testituotanto"})
-    tuotanto_id = vastaus.json()["id"]
+    tuotanto_id = await oma_tuotanto_id(client)
     _kayta_geocoderia(FakeGeocoder({"Kuskin osoite": (60.3, 24.3)}))
 
     vastaus = await client.post(
@@ -270,8 +264,7 @@ async def test_kuski_geokoodataan_tallennuksessa(client):
 
 
 async def test_kuski_kasin_annettuja_koordinaatteja_ei_ylikirjoiteta(client):
-    vastaus = await client.post("/tuotannot", json={"nimi": "Testituotanto"})
-    tuotanto_id = vastaus.json()["id"]
+    tuotanto_id = await oma_tuotanto_id(client)
     geocoder = FakeGeocoder({"Kuskin osoite": (60.3, 24.3)})
     _kayta_geocoderia(geocoder)
 
@@ -290,8 +283,7 @@ async def test_kuski_kasin_annettuja_koordinaatteja_ei_ylikirjoiteta(client):
 
 
 async def test_kuski_geokoodaus_epaonnistuu_ei_esta_tallennusta(client):
-    vastaus = await client.post("/tuotannot", json={"nimi": "Testituotanto"})
-    tuotanto_id = vastaus.json()["id"]
+    tuotanto_id = await oma_tuotanto_id(client)
     _kayta_geocoderia(FakeGeocoder({}))
 
     vastaus = await client.post(
@@ -305,8 +297,7 @@ async def test_kuski_geokoodaus_epaonnistuu_ei_esta_tallennusta(client):
 
 
 async def test_lokaatio_geokoodataan_tallennuksessa(client):
-    vastaus = await client.post("/tuotannot", json={"nimi": "Testituotanto"})
-    tuotanto_id = vastaus.json()["id"]
+    tuotanto_id = await oma_tuotanto_id(client)
     _kayta_geocoderia(FakeGeocoder({"Lokaation osoite": (60.4, 24.4)}))
 
     vastaus = await client.post(
@@ -320,8 +311,7 @@ async def test_lokaatio_geokoodataan_tallennuksessa(client):
 
 
 async def test_lokaatio_kasin_annettuja_koordinaatteja_ei_ylikirjoiteta(client):
-    vastaus = await client.post("/tuotannot", json={"nimi": "Testituotanto"})
-    tuotanto_id = vastaus.json()["id"]
+    tuotanto_id = await oma_tuotanto_id(client)
     geocoder = FakeGeocoder({"Lokaation osoite": (60.4, 24.4)})
     _kayta_geocoderia(geocoder)
 
@@ -340,8 +330,7 @@ async def test_lokaatio_kasin_annettuja_koordinaatteja_ei_ylikirjoiteta(client):
 
 
 async def test_lokaatio_geokoodaus_epaonnistuu_ei_esta_tallennusta(client):
-    vastaus = await client.post("/tuotannot", json={"nimi": "Testituotanto"})
-    tuotanto_id = vastaus.json()["id"]
+    tuotanto_id = await oma_tuotanto_id(client)
     _kayta_geocoderia(FakeGeocoder({}))
 
     vastaus = await client.post(
@@ -355,8 +344,7 @@ async def test_lokaatio_geokoodaus_epaonnistuu_ei_esta_tallennusta(client):
 
 
 async def test_sama_osoite_eri_entiteeteissa_geokoodataan_vain_kerran(client):
-    vastaus = await client.post("/tuotannot", json={"nimi": "Testituotanto"})
-    tuotanto_id = vastaus.json()["id"]
+    tuotanto_id = await oma_tuotanto_id(client)
     geocoder = FakeGeocoder({"Jaettu osoite": (60.5, 24.5)})
     _kayta_geocoderia(geocoder)
 
@@ -375,9 +363,7 @@ async def test_sama_osoite_eri_entiteeteissa_geokoodataan_vain_kerran(client):
 
 
 async def _seed_tuotanto(db_session) -> int:
-    tuotanto = Tuotanto(nimi="Testituotanto")
-    db_session.add(tuotanto)
-    await db_session.flush()
+    tuotanto = await hae_testituotanto(db_session)
     return tuotanto.id
 
 

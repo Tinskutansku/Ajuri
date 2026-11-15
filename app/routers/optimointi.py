@@ -17,6 +17,7 @@ from app.database import get_db
 from app.models import (
     AjolistaVersio,
     Henkilo,
+    Kayttaja,
     KayttajaRooli,
     Keikka,
     Kuski,
@@ -25,8 +26,9 @@ from app.models import (
     Tehtava,
     Tuotanto,
 )
+from app.omistus import hae_paiva
 from app.response_filter import OPTIMOINTIVASTAUS_KUSKILTA_PIILOTETTAVAT, json_vastaus
-from app.rooli import nykyinen_rooli
+from app.rooli import kirjautunut_kayttaja, nykyinen_rooli
 from app.schemas import (
     KeikkaVastaus,
     KuskinAjolista,
@@ -77,13 +79,15 @@ def _parse_hhmm(teksti: str) -> int:
 
 
 @router.get("/paivat/{paiva_id}/optimointi", response_model=OptimoinninTila)
-async def optimoinnin_tila(paiva_id: int, db: AsyncSession = Depends(get_db)):
+async def optimoinnin_tila(
+    paiva_id: int,
+    db: AsyncSession = Depends(get_db),
+    kayttaja: Kayttaja = Depends(kirjautunut_kayttaja),
+):
     """Kevyt tilakysely Optimointi-välilehdelle: sivun päivitys kesken
     laskennan ei hukkaa tulosta, vaan frontend kyselee tätä, kunnes
     laskenta on valmis, ja hakee sitten viimeisimmän version."""
-    paiva = await db.get(Kuvauspaiva, paiva_id)
-    if paiva is None:
-        raise HTTPException(status_code=404, detail="Kuvauspäivää ei löytynyt")
+    await hae_paiva(db, paiva_id, kayttaja)
     viimeisin_versio_id = (
         await db.execute(
             select(AjolistaVersio.id)
@@ -105,8 +109,11 @@ async def optimoi_paiva(
     pyynto: OptimointiPyynto,
     db: AsyncSession = Depends(get_db),
     router_client: RouterClient = Depends(get_router_client),
+    kayttaja: Kayttaja = Depends(kirjautunut_kayttaja),
     rooli: KayttajaRooli = Depends(nykyinen_rooli),
 ):
+    # Omistus ennen lukkoa: toisen tuotannon päivästä tulee 404, ei 409.
+    await hae_paiva(db, paiva_id, kayttaja)
     # Saman päivän päällekkäinen optimointi (esim. sivun päivitys + uusi
     # Optimoi-painallus kesken laskennan) loisi kaksi ajolistaversiota
     # kilpasilla. Toinen pyyntö saa heti 409:n eikä jää jonoon.

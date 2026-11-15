@@ -98,8 +98,8 @@ API-suodatuksella, samalla mekanismilla kuin kustannuskentät.
 
 ## Vaihe D — Roolinäkyvyys ja Rekisteri-välilehti (valmis)
 
-**Roolinäkyvyys API-tasolla:** `app/rooli.py` (roolin lähde, toistaiseksi
-`X-Rooli`-header, oletus TUOTANTO — EI turvaominaisuus, ks. README) +
+**Roolinäkyvyys API-tasolla:** `app/rooli.py` (roolin lähde; vaiheessa D
+`X-Rooli`-header, ROADMAP K2:sta lähtien kirjautumistoken) +
 `app/response_filter.py` (kenttäsuodatus, yksi paikka jossa määritellään
 mitä KUSKI-rooli ei näe). KUSKI-roolilta pois kaikista vastauksista
 (kenttä puuttuu kokonaan, ei vain `null`):
@@ -254,8 +254,8 @@ listaa rivi riviltä juuri silloin kun on eniten kiire.
    TP:n tarkistukseen ja vuoroilmoituksiin
 5. **Korjausehdotukset sijoittamattomille** ("ota Kalle käyttöön, +88 €") —
    skenaariomoottori on jo olemassa, tämä on sen paketointia
-6. Käyttäjähallinta + autentikointi (roolit oikeasti voimaan — `X-Rooli`
-   on väliaikainen eikä turvaominaisuus)
+6. Käyttäjähallinta + autentikointi (roolit oikeasti voimaan) — backend
+   valmis ROADMAPin K1–K2:ssa, kirjautumissivu K3
 7. Itseoppivat bufferit toteumadatasta
 8. Max-paikat hyväksynnällä, shuttle-ikkunat, viikkosaldo optimointirajoitteena,
    asynkroninen optimointi, osastoautot hätävarana

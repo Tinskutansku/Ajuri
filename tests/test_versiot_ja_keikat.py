@@ -2,6 +2,7 @@
 Ajolista_versio/keikka-rivit eivät ole oman CRUD:in takana (syntyvät vain
 optimoinnista), joten ne seedataan suoraan ORM:lla."""
 
+from tests.apu_tuotanto import hae_testituotanto
 from datetime import date, time
 
 from sqlalchemy import select
@@ -16,14 +17,11 @@ from app.models import (
     SopimusTyyppi,
     Tehtava,
     TehtavaTyyppi,
-    Tuotanto,
 )
 
 
 async def _seed_kaksi_versiota(db_session) -> tuple[int, int]:
-    tuotanto = Tuotanto(nimi="Testituotanto")
-    db_session.add(tuotanto)
-    await db_session.flush()
+    tuotanto = await hae_testituotanto(db_session)
 
     paiva = Kuvauspaiva(tuotanto_id=tuotanto.id, pvm=date(2026, 7, 10), call_time=time(8, 0))
     db_session.add(paiva)
@@ -55,11 +53,9 @@ async def test_julkaise_versio_404(client):
     assert vastaus.status_code == 404
 
 
-async def _seed_paiva(db_session) -> int:
-    tuotanto = Tuotanto(nimi="Testituotanto")
-    db_session.add(tuotanto)
-    await db_session.flush()
-    paiva = Kuvauspaiva(tuotanto_id=tuotanto.id, pvm=date(2026, 7, 10), call_time=time(8, 0))
+async def _seed_paiva(db_session, pvm: date = date(2026, 7, 10)) -> int:
+    tuotanto = await hae_testituotanto(db_session)
+    paiva = Kuvauspaiva(tuotanto_id=tuotanto.id, pvm=pvm, call_time=time(8, 0))
     db_session.add(paiva)
     await db_session.commit()
     return paiva.id
@@ -100,7 +96,7 @@ async def test_julkaise_versio_uudelleen_ei_vaihda_tunnistetta(client, db_sessio
 
 async def test_jokaisella_paivalla_oma_varikierto(client, db_session):
     paiva_a_id = await _seed_paiva(db_session)
-    paiva_b_id = await _seed_paiva(db_session)
+    paiva_b_id = await _seed_paiva(db_session, date(2026, 7, 11))
 
     v_a1 = AjolistaVersio(paiva_id=paiva_a_id, versio_nro=1)
     v_a2 = AjolistaVersio(paiva_id=paiva_a_id, versio_nro=2)
@@ -117,9 +113,7 @@ async def test_jokaisella_paivalla_oma_varikierto(client, db_session):
 
 
 async def _seed_keikka(db_session) -> int:
-    tuotanto = Tuotanto(nimi="Testituotanto")
-    db_session.add(tuotanto)
-    await db_session.flush()
+    tuotanto = await hae_testituotanto(db_session)
 
     paiva = Kuvauspaiva(tuotanto_id=tuotanto.id, pvm=date(2026, 7, 10), call_time=time(8, 0))
     db_session.add(paiva)

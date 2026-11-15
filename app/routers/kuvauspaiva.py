@@ -4,7 +4,9 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models import Kuvauspaiva
+from app.models import Kayttaja, Kuvauspaiva
+from app.omistus import hae_tuotannon_rivi, rajaa_tuotantoon, tarkista_tuotanto
+from app.rooli import kirjautunut_kayttaja
 from app.schemas import KuvauspaivaCreate, KuvauspaivaRead
 
 router = APIRouter(prefix="/kuvauspaivat", tags=["kuvauspaivat"])
@@ -24,7 +26,12 @@ async def _commit_tai_409(db: AsyncSession) -> None:
 
 
 @router.post("", response_model=KuvauspaivaRead, status_code=201)
-async def luo_kuvauspaiva(data: KuvauspaivaCreate, db: AsyncSession = Depends(get_db)):
+async def luo_kuvauspaiva(
+    data: KuvauspaivaCreate,
+    db: AsyncSession = Depends(get_db),
+    kayttaja: Kayttaja = Depends(kirjautunut_kayttaja),
+):
+    tarkista_tuotanto(data.tuotanto_id, kayttaja)
     paiva = Kuvauspaiva(**data.model_dump())
     db.add(paiva)
     await _commit_tai_409(db)
@@ -34,30 +41,36 @@ async def luo_kuvauspaiva(data: KuvauspaivaCreate, db: AsyncSession = Depends(ge
 
 @router.get("", response_model=list[KuvauspaivaRead])
 async def listaa_kuvauspaivat(
-    tuotanto_id: int | None = None, db: AsyncSession = Depends(get_db)
+    tuotanto_id: int | None = None,
+    db: AsyncSession = Depends(get_db),
+    kayttaja: Kayttaja = Depends(kirjautunut_kayttaja),
 ):
-    stmt = select(Kuvauspaiva).order_by(Kuvauspaiva.id)
+    stmt = rajaa_tuotantoon(select(Kuvauspaiva).order_by(Kuvauspaiva.id), Kuvauspaiva, kayttaja)
     if tuotanto_id is not None:
-        stmt = stmt.where(Kuvauspaiva.tuotanto_id == tuotanto_id)
+        tarkista_tuotanto(tuotanto_id, kayttaja)
     result = await db.execute(stmt)
     return result.scalars().all()
 
 
 @router.get("/{paiva_id}", response_model=KuvauspaivaRead)
-async def hae_kuvauspaiva(paiva_id: int, db: AsyncSession = Depends(get_db)):
-    paiva = await db.get(Kuvauspaiva, paiva_id)
-    if paiva is None:
-        raise HTTPException(status_code=404, detail="Kuvauspäivää ei löytynyt")
+async def hae_kuvauspaiva(
+    paiva_id: int,
+    db: AsyncSession = Depends(get_db),
+    kayttaja: Kayttaja = Depends(kirjautunut_kayttaja),
+):
+    paiva = await hae_tuotannon_rivi(db, Kuvauspaiva, paiva_id, kayttaja, "Kuvauspäivää ei löytynyt")
     return paiva
 
 
 @router.put("/{paiva_id}", response_model=KuvauspaivaRead)
 async def paivita_kuvauspaiva(
-    paiva_id: int, data: KuvauspaivaCreate, db: AsyncSession = Depends(get_db)
+    paiva_id: int,
+    data: KuvauspaivaCreate,
+    db: AsyncSession = Depends(get_db),
+    kayttaja: Kayttaja = Depends(kirjautunut_kayttaja),
 ):
-    paiva = await db.get(Kuvauspaiva, paiva_id)
-    if paiva is None:
-        raise HTTPException(status_code=404, detail="Kuvauspäivää ei löytynyt")
+    paiva = await hae_tuotannon_rivi(db, Kuvauspaiva, paiva_id, kayttaja, "Kuvauspäivää ei löytynyt")
+    tarkista_tuotanto(data.tuotanto_id, kayttaja)
     for kentta, arvo in data.model_dump().items():
         setattr(paiva, kentta, arvo)
     await _commit_tai_409(db)
@@ -66,9 +79,11 @@ async def paivita_kuvauspaiva(
 
 
 @router.delete("/{paiva_id}", status_code=204)
-async def poista_kuvauspaiva(paiva_id: int, db: AsyncSession = Depends(get_db)):
-    paiva = await db.get(Kuvauspaiva, paiva_id)
-    if paiva is None:
-        raise HTTPException(status_code=404, detail="Kuvauspäivää ei löytynyt")
+async def poista_kuvauspaiva(
+    paiva_id: int,
+    db: AsyncSession = Depends(get_db),
+    kayttaja: Kayttaja = Depends(kirjautunut_kayttaja),
+):
+    paiva = await hae_tuotannon_rivi(db, Kuvauspaiva, paiva_id, kayttaja, "Kuvauspäivää ei löytynyt")
     await db.delete(paiva)
     await db.commit()

@@ -1,10 +1,11 @@
 """Savutesti päiväkohtaiselle CRUD:lle: luo tuotanto ja kuvauspäivä,
 lisää paiva_kuski/paiva_henkilo/tehtava, hae listat ja päivitä/poista rivi."""
 
+from tests.apu_tuotanto import oma_tuotanto_id
+
 
 async def test_kuvauspaiva_ja_paivakohtaiset_rivit(client):
-    vastaus = await client.post("/tuotannot", json={"nimi": "Testituotanto"})
-    tuotanto_id = vastaus.json()["id"]
+    tuotanto_id = await oma_tuotanto_id(client)
 
     vastaus = await client.post(
         "/kuvauspaivat",
@@ -109,8 +110,7 @@ async def test_kuvauspaiva_404(client):
 
 
 async def test_henkilo_max_etuajassa_min_validoidaan(client):
-    vastaus = await client.post("/tuotannot", json={"nimi": "Testituotanto"})
-    tuotanto_id = vastaus.json()["id"]
+    tuotanto_id = await oma_tuotanto_id(client)
 
     perus = {"tuotanto_id": tuotanto_id, "tyyppi": "cast", "nimi": "Näyttelijä 1"}
 
@@ -125,11 +125,12 @@ async def test_henkilo_max_etuajassa_min_validoidaan(client):
     assert vastaus.json()["max_etuajassa_min"] == 60
 
 
-async def test_kuvauspaiva_sama_pvm_409(client):
+async def test_kuvauspaiva_sama_pvm_409(client, kirjaudu):
     """Sama päivämäärä kahdesti samaan tuotantoon -> 409 eikä 500,
     sekä luonnissa että päivityksessä. Eri tuotannossa sama pvm käy."""
-    t1 = (await client.post("/tuotannot", json={"nimi": "T1"})).json()["id"]
+    t1 = await oma_tuotanto_id(client)
     t2 = (await client.post("/tuotannot", json={"nimi": "T2"})).json()["id"]
+    t2_otsakkeet = await kirjaudu(tuotanto_id=t2)
     perus = {"call_time": "08:00:00"}
 
     eka = await client.post("/kuvauspaivat", json={**perus, "tuotanto_id": t1, "pvm": "2026-07-10"})
@@ -140,7 +141,8 @@ async def test_kuvauspaiva_sama_pvm_409(client):
     assert "päivämäärälle" in tupla.json()["detail"]
 
     toinen_tuotanto = await client.post(
-        "/kuvauspaivat", json={**perus, "tuotanto_id": t2, "pvm": "2026-07-10"}
+        "/kuvauspaivat", json={**perus, "tuotanto_id": t2, "pvm": "2026-07-10"},
+        headers=t2_otsakkeet,
     )
     assert toinen_tuotanto.status_code == 201
 

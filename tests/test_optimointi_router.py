@@ -17,9 +17,9 @@ from app.models import (
     SopimusTyyppi,
     Tehtava,
     TehtavaTyyppi,
-    Tuotanto,
 )
 from app.services.router_client import RouterClient, get_router_client
+from tests.apu_tuotanto import hae_testituotanto
 
 
 class FakeRouterClient(RouterClient):
@@ -33,9 +33,7 @@ class FakeRouterClient(RouterClient):
 
 
 async def _seed(db_session) -> tuple[int, int]:
-    tuotanto = Tuotanto(nimi="Testituotanto", tuntihinta_eur=20.0)
-    db_session.add(tuotanto)
-    await db_session.flush()
+    tuotanto = await hae_testituotanto(db_session, tuntihinta_eur=20.0)
 
     paiva = Kuvauspaiva(tuotanto_id=tuotanto.id, pvm=date(2026, 7, 10), call_time=time(8, 0))
     db_session.add(paiva)
@@ -143,9 +141,7 @@ async def test_reoptimointi_toimii_kun_lukitun_keikan_tehtava_on_passivoitu(clie
     """Vaihe B2: jos päivä regeneroidaan optimoinnin välissä, aiemmin
     kuitattu keikka voi viitata sittemmin passivoituun tehtävään - tämän
     pitää silti näkyä oikein reoptimoinnin vastauksessa (ei KeyErroria)."""
-    tuotanto = Tuotanto(nimi="Testituotanto", tuntihinta_eur=20.0)
-    db_session.add(tuotanto)
-    await db_session.flush()
+    tuotanto = await hae_testituotanto(db_session, tuntihinta_eur=20.0)
 
     paiva = Kuvauspaiva(tuotanto_id=tuotanto.id, pvm=date(2026, 7, 10), call_time=time(8, 0))
     db_session.add(paiva)
@@ -220,9 +216,7 @@ async def test_reoptimointi_toimii_kun_lukitun_keikan_kuski_on_passivoitu(client
     keikkansa kuitattiin, reoptimoinnin pitää silti näyttää lukittu keikka
     oikein (ei KeyErroria), eikä passivoitu kuski saa olla ehdolla uusille
     tehtäville."""
-    tuotanto = Tuotanto(nimi="Testituotanto", tuntihinta_eur=20.0)
-    db_session.add(tuotanto)
-    await db_session.flush()
+    tuotanto = await hae_testituotanto(db_session, tuntihinta_eur=20.0)
 
     paiva = Kuvauspaiva(tuotanto_id=tuotanto.id, pvm=date(2026, 7, 10), call_time=time(8, 0))
     db_session.add(paiva)
@@ -323,9 +317,7 @@ async def _seed_yksi_tehtava(db_session, *, pickup_bufferi_min=0, henkilo_buffer
     """Yksi kuski + yksi tehtävä, leveä aikaikkuna (00:00-10:00) ilman
     oletusarvoisia ikkunanreunoja, jotka söisivät bufferin vaikutuksen
     (sama tekniikka kuin tests/test_optimoija.py:n bufferitesteissä)."""
-    tuotanto = Tuotanto(nimi="Testituotanto", tuntihinta_eur=20.0)
-    db_session.add(tuotanto)
-    await db_session.flush()
+    tuotanto = await hae_testituotanto(db_session, tuntihinta_eur=20.0)
 
     paiva = Kuvauspaiva(tuotanto_id=tuotanto.id, pvm=date(2026, 7, 10), call_time=time(8, 0))
     db_session.add(paiva)
