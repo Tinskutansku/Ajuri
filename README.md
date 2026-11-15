@@ -251,7 +251,14 @@ python -m app.luo_kayttaja --email tanja@example.com --rooli tuotanto
 python -m app.luo_kayttaja --email kuski@example.com --rooli kuski --kuski-id 3
 ```
 
-`--tuotanto-id` tarvitaan vain, jos kannassa on useampi tuotanto.
+`--tuotanto-id` tarvitaan vain, jos kannassa on useampi tuotanto. Uusi
+tuotanto luodaan samalla komennolla, koska API ei salli tuotannon luontia
+(`POST /tuotannot` → 403):
+
+```
+python -m app.luo_kayttaja --uusi-tuotanto "Elokuva X" --email tanja@example.com --rooli tuotanto
+```
+
 `POST /auth/kirjaudu` palauttaa 12 tuntia voimassa olevan JWT-tokenin, ja
 `GET /auth/mina` kertoo kirjautuneen käyttäjän (`Authorization: Bearer <token>`).
 
