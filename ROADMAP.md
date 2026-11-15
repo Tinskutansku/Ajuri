@@ -57,7 +57,7 @@ viimeksi kirjautunut) ja sen Alembic-migraatio; roolin lukeminen tokenista
   email, passivoitu käyttäjä), token-sisällölle ja migraatiolle (CI:n
   `alembic check`)
 
-### K2 `[PR #25]` Backend: kaikki reitit vaativat kirjautumisen
+### K2 `[x]` Backend: kaikki reitit vaativat kirjautumisen
 - `nykyinen_rooli` lukee roolin tokenista (kutsupaikat eivät muutu, ks.
   `app/rooli.py`:n ohje). `X-Rooli` poistuu.
 - Kaikki reitit vaativat voimassa olevan tokenin, paitsi `GET /`,
