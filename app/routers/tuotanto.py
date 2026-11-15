@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -7,22 +7,24 @@ from app.models import Henkilo, Kayttaja, Kuski, Lokaatio, Tuotanto
 from app.omistus import hae_tuotanto as hae_oma_tuotanto
 from app.rooli import kirjautunut_kayttaja
 from app.schemas import GeokoodausTulos, TuotantoCreate, TuotantoRead
+
+TUOTANTOA_EI_VOI_LUODA = (
+    "Tuotantoa ei voi luoda API:n kautta. Luo tuotanto ja sen ensimmäinen käyttäjä "
+    "komentorivillä: python -m app.luo_kayttaja --uusi-tuotanto \"Nimi\" --email ... --rooli tuotanto"
+)
 from app.services.geocoder_client import GeocoderClient, get_geocoder_client
 from app.services.geokoodaus_cache import normalisoi_avain, on_tuore_kielteinen_osuma, taydenna_koordinaatit
 
 router = APIRouter(prefix="/tuotannot", tags=["tuotannot"])
 
 
-# HUOM (K2): luonti on ennallaan, vaikka käyttäjä näkee vain oman
-# tuotantonsa, eli luotu tuotanto ei näy luojalleen. Avoin päätös
-# (needs-decision K2:n PR:ssä): estetäänkö luonti API:sta kokonaan.
-@router.post("", response_model=TuotantoRead, status_code=201)
-async def luo_tuotanto(data: TuotantoCreate, db: AsyncSession = Depends(get_db)):
-    tuotanto = Tuotanto(**data.model_dump())
-    db.add(tuotanto)
-    await db.commit()
-    await db.refresh(tuotanto)
-    return tuotanto
+# Tanjan päätös PR #25:ssä (vaihtoehto A): käyttäjä kuuluu yhteen
+# tuotantoon eikä näe muita, joten API:lla luotu tuotanto jäisi kaikilta
+# piiloon. Luonti estetään kaikilta rooleilta; reitti pysyy, jotta
+# asiakas saa selkeän 403-viestin eikä 405:tä.
+@router.post("", status_code=201, responses={403: {"description": TUOTANTOA_EI_VOI_LUODA}})
+async def luo_tuotanto():
+    raise HTTPException(status_code=403, detail=TUOTANTOA_EI_VOI_LUODA)
 
 
 @router.get("", response_model=list[TuotantoRead])
