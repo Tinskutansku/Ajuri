@@ -73,7 +73,7 @@ viimeksi kirjautunut) ja sen Alembic-migraatio; roolin lukeminen tokenista
 - Avoin alakysymys (needs-decision PR #25:ssä): saako `POST /tuotannot`
   luoda tuotannon API:n kautta. Toistaiseksi ennallaan.
 
-### K3 `[ ]` Frontend: kirjautumissivu
+### K3 `[PR #27]` Frontend: kirjautumissivu
 - Kirjautumissivu (email, salasana, näkyvät kenttäotsikot), uloskirjautuminen
   yläpalkista, kirjautuneen nimi ja rooli näkyviin
 - Token muistiin ja `sessionStorage`en (ei `localStorage`: välilehden
