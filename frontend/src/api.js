@@ -1,3 +1,5 @@
+import { haeToken, istuntoVanheni } from "./istunto.js";
+
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
 // Pyynnön aikaraja: jumiutunut backend näkyy selkeänä virheenä eikä
@@ -10,10 +12,14 @@ async function pyyda(polku, options = {}) {
   const ajastin = setTimeout(() => ohjain.abort("aikaraja"), aikarajaMs);
   const peru = () => ohjain.abort(kutsujanSignal.reason);
   kutsujanSignal?.addEventListener("abort", peru);
+  // Kaikki reitit paitsi kirjautuminen vaativat tokenin (ROADMAP K2).
+  const token = haeToken();
+  const otsakkeet = { "Content-Type": "application/json" };
+  if (token) otsakkeet.Authorization = `Bearer ${token}`;
   let vastaus;
   try {
     vastaus = await fetch(`${API_BASE}${polku}`, {
-      headers: { "Content-Type": "application/json" },
+      headers: otsakkeet,
       ...loput,
       signal: ohjain.signal,
     });
@@ -29,6 +35,13 @@ async function pyyda(polku, options = {}) {
     clearTimeout(ajastin);
     kutsujanSignal?.removeEventListener("abort", peru);
   }
+  // 401 tokenin kanssa = token vanhentunut tai käyttäjä passivoitu:
+  // takaisin kirjautumissivulle. Ilman tokenia 401 on kirjautumisen
+  // "väärä sähköposti tai salasana", joka näytetään lomakkeella.
+  if (vastaus.status === 401 && token) {
+    istuntoVanheni();
+    throw new Error("Istunto vanheni. Kirjaudu uudelleen.");
+  }
   if (!vastaus.ok) {
     let viesti = `${vastaus.status} ${vastaus.statusText}`;
     try {
@@ -41,6 +54,16 @@ async function pyyda(polku, options = {}) {
   }
   if (vastaus.status === 204) return null; // esim. DELETE, ei runkoa
   return vastaus.json();
+}
+
+// --- Kirjautuminen ---
+
+// Vastaus: { access_token, token_type, voimassa_s, kayttaja }
+export function kirjaudu(email, salasana) {
+  return pyyda("/auth/kirjaudu", { method: "POST", body: JSON.stringify({ email, salasana }) });
+}
+export function haeMina() {
+  return pyyda("/auth/mina");
 }
 
 export function haeKuvauspaivat() {

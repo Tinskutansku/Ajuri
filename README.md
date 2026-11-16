@@ -217,6 +217,13 @@ npm run dev
 Avaa http://localhost:5173. Vaatii backendin käynnissä portissa 8000 —
 CORS on sallittu porttiin 5173 (`app/config.py: cors_origins`).
 
+Sovellus avautuu kirjautumissivulle. Kirjaudu jollakin alla olevista
+demotunnuksista (Kirjautuminen-osio). Istunto pidetään selaimen
+`sessionStorage`ssa: sivun päivitys ei kirjaa ulos, mutta välilehden
+sulkeminen kirjaa. Kun token vanhenee (12 h), sovellus palaa
+kirjautumissivulle viestillä "Istunto vanheni". Kuski näkee vain
+Optimointi-välilehden ajolistan ilman muokkausnappeja.
+
 Frontin välilehdet kulkevat työn järjestyksessä:
 
 - **Rekisteri** — tuotannon henkilöt (näyttelijät, työryhmä) ja kuskit.
@@ -350,8 +357,8 @@ roolipohjainen kenttäsuodatus ja geokoodaus välimuisteineen.
 
 **Seuraavaksi** ([ROADMAP.md](ROADMAP.md)):
 
-1. **Kirjautuminen** — backend valmis (salasanat, JWT, roolit ja
-   tuotantokohtainen näkyvyys tokenista); kirjautumissivu frontendiin
+1. **Kirjautuminen** — valmis: salasanat, JWT, roolit ja tuotantokohtainen
+   näkyvyys tokenista sekä kirjautumissivu frontendissä
 2. **Kovennukset** — tuotantoasetukset ilman oletussalaisuuksia,
    pyyntörajoitukset ja syötteiden rajat
 3. **Julkaisu demoksi** — Render, demotila ja arkkitehtuurikuvaus

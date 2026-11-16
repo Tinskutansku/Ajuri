@@ -66,9 +66,10 @@ export const riviTyyli = {
   color: C.inkSolid,
 };
 
-export function Nappi({ children, onClick, variant = "ink", disabled = false, style = {} }) {
+export function Nappi({ children, onClick, variant = "ink", disabled = false, style = {}, type = "button" }) {
   return (
     <button
+      type={type}
       onClick={onClick}
       disabled={disabled}
       style={{
@@ -155,11 +156,12 @@ export function KenttaOtsikolla({ id, otsikko, children, style = {} }) {
 
 // id: kytkee kentän <label htmlFor>-otsikkoon. label: aria-label, kun
 // näkyvää otsikkoa ei ole.
-export function Kentta({ value, onChange, onBlur, w = 72, ph = "", type = "text", id, label }) {
+export function Kentta({ value, onChange, onBlur, w = 72, ph = "", type = "text", id, label, autoComplete }) {
   return (
     <input
       id={id}
       aria-label={label}
+      autoComplete={autoComplete}
       value={value}
       placeholder={ph}
       type={type}
