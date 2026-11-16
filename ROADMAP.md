@@ -91,7 +91,7 @@ AJURIa vasten. Löydökset on lisätty tähän vaiheeseen sekä kohtaan O1.
 **Esihyväksytty (Tanja 13.11. ja 16.11.):** riippuvuus `slowapi`;
 CI-muutos L4:n haavoittuvuusskannausta varten (vain se).
 
-### L0 `[PR]` Tietokannan ja backendin portit vain omalle koneelle
+### L0 `[PR #28]` Tietokannan ja backendin portit vain omalle koneelle
 Tehty Tanjan kanssa 16.11. `docker-compose.yml` sitoo portit 5433 ja 8000
 osoitteeseen `127.0.0.1`. Aiemmin PostgreSQL (salasana `ajuri`) näkyi
 koneen kaikkiin verkkoliitäntöihin.
