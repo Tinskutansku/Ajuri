@@ -57,7 +57,7 @@ viimeksi kirjautunut) ja sen Alembic-migraatio; roolin lukeminen tokenista
   email, passivoitu käyttäjä), token-sisällölle ja migraatiolle (CI:n
   `alembic check`)
 
-### K2 `[PR #25]` Backend: kaikki reitit vaativat kirjautumisen
+### K2 `[x]` Backend: kaikki reitit vaativat kirjautumisen
 - `nykyinen_rooli` lukee roolin tokenista (kutsupaikat eivät muutu, ks.
   `app/rooli.py`:n ohje). `X-Rooli` poistuu.
 - Kaikki reitit vaativat voimassa olevan tokenin, paitsi `GET /`,
@@ -70,8 +70,8 @@ viimeksi kirjautunut) ja sen Alembic-migraatio; roolin lukeminen tokenista
 - **Valmis kun:** testi jokaiselle reitille ilman tokenia (401), KUSKI-
   muokkaukselle (403) ja toisen tuotannon datalle (404). Kaikki vanhat testit
   menevät läpi kirjautuneena.
-- Avoin alakysymys (needs-decision PR #25:ssä): saako `POST /tuotannot`
-  luoda tuotannon API:n kautta. Toistaiseksi ennallaan.
+- Päätetty (Tanja 15.11., PR #25, vaihtoehto A): `POST /tuotannot` → 403
+  kaikille; uusi tuotanto luodaan `python -m app.luo_kayttaja --uusi-tuotanto`
 
 ### K3 `[ ]` Frontend: kirjautumissivu
 - Kirjautumissivu (email, salasana, näkyvät kenttäotsikot), uloskirjautuminen

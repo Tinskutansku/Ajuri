@@ -219,6 +219,30 @@ async def test_luo_kayttaja_ja_kirjautuminen_toimii(client, db_session):
     assert (await _kirjaudu(client)).status_code == 200
 
 
+async def test_luo_kayttaja_uudella_tuotannolla(client, db_session):
+    db_session.add(Tuotanto(nimi="Vanha tuotanto"))  # ei estä: tuotanto luodaan uutena
+    await db_session.commit()
+
+    k = await luo_kayttaja(db_session, email="tanja@example.com", rooli=KayttajaRooli.TUOTANTO,
+                           salasana=SALASANA, uusi_tuotanto="  Elokuva X ")
+
+    tuotanto = await db_session.get(Tuotanto, k.tuotanto_id)
+    assert tuotanto.nimi == "Elokuva X"
+    token = (await _kirjaudu(client)).json()["access_token"]
+    vastaus = await client.get("/tuotannot", headers={"Authorization": f"Bearer {token}"})
+    assert [t["nimi"] for t in vastaus.json()] == ["Elokuva X"]
+
+
+async def test_luo_kayttaja_uusi_tuotanto_virheet(db_session):
+    perus = dict(email="a@example.com", rooli=KayttajaRooli.TUOTANTO, salasana=SALASANA)
+    with pytest.raises(LuontiVirhe, match="molempia"):
+        await luo_kayttaja(db_session, **perus, tuotanto_id=1, uusi_tuotanto="X")
+    with pytest.raises(LuontiVirhe, match="nimi puuttuu"):
+        await luo_kayttaja(db_session, **perus, uusi_tuotanto="  ")
+    with pytest.raises(LuontiVirhe, match="kuski"):
+        await luo_kayttaja(db_session, **{**perus, "rooli": KayttajaRooli.KUSKI}, uusi_tuotanto="X")
+
+
 async def test_luo_kayttaja_virheet(db_session):
     t1, t2 = Tuotanto(nimi="A"), Tuotanto(nimi="B")
     db_session.add_all([t1, t2])

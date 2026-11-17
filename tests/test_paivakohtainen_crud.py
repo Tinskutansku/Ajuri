@@ -1,6 +1,7 @@
 """Savutesti päiväkohtaiselle CRUD:lle: luo tuotanto ja kuvauspäivä,
 lisää paiva_kuski/paiva_henkilo/tehtava, hae listat ja päivitä/poista rivi."""
 
+from app.models import Tuotanto
 from tests.apu_tuotanto import oma_tuotanto_id
 
 
@@ -125,11 +126,14 @@ async def test_henkilo_max_etuajassa_min_validoidaan(client):
     assert vastaus.json()["max_etuajassa_min"] == 60
 
 
-async def test_kuvauspaiva_sama_pvm_409(client, kirjaudu):
+async def test_kuvauspaiva_sama_pvm_409(client, db_session, kirjaudu):
     """Sama päivämäärä kahdesti samaan tuotantoon -> 409 eikä 500,
     sekä luonnissa että päivityksessä. Eri tuotannossa sama pvm käy."""
     t1 = await oma_tuotanto_id(client)
-    t2 = (await client.post("/tuotannot", json={"nimi": "T2"})).json()["id"]
+    toinen = Tuotanto(nimi="T2")  # POST /tuotannot on estetty, joten suoraan kantaan
+    db_session.add(toinen)
+    await db_session.commit()
+    t2 = toinen.id
     t2_otsakkeet = await kirjaudu(tuotanto_id=t2)
     perus = {"call_time": "08:00:00"}
 

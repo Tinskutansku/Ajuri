@@ -7,6 +7,9 @@ Käyttö:
 Salasana kysytään piilotettuna kahteen kertaan (ei koskaan komentoriville,
 ettei se jää shell-historiaan). --tuotanto-id voi jättää pois, jos kannassa
 on tasan yksi tuotanto. --nimi oletuksena emailin alkuosa.
+
+Uusi tuotanto luodaan vain täältä (API:n POST /tuotannot on estetty):
+    python -m app.luo_kayttaja --uusi-tuotanto "Elokuva X" --email tanja@example.com --rooli tuotanto
 """
 
 from __future__ import annotations
@@ -38,6 +41,7 @@ async def luo_kayttaja(
     nimi: str | None = None,
     tuotanto_id: int | None = None,
     kuski_id: int | None = None,
+    uusi_tuotanto: str | None = None,
 ) -> Kayttaja:
     email = email.strip().lower()
     if "@" not in email:
@@ -51,7 +55,19 @@ async def luo_kayttaja(
     if olemassa is not None:
         raise LuontiVirhe(f"Käyttäjä {email} on jo olemassa (id={olemassa.id}).")
 
-    if tuotanto_id is None:
+    if uusi_tuotanto is not None:
+        # Ainoa tapa luoda tuotanto (POST /tuotannot on estetty, PR #25).
+        if tuotanto_id is not None:
+            raise LuontiVirhe("Anna joko --tuotanto-id tai --uusi-tuotanto, ei molempia.")
+        if not uusi_tuotanto.strip():
+            raise LuontiVirhe("Uuden tuotannon nimi puuttuu.")
+        if rooli == KayttajaRooli.KUSKI:
+            raise LuontiVirhe("Uuden tuotannon ensimmäinen käyttäjä ei voi olla kuski.")
+        tuotanto = Tuotanto(nimi=uusi_tuotanto.strip())
+        db.add(tuotanto)
+        await db.flush()
+        tuotanto_id = tuotanto.id
+    elif tuotanto_id is None:
         tuotannot = (await db.execute(select(Tuotanto).order_by(Tuotanto.id))).scalars().all()
         if len(tuotannot) != 1:
             lista = ", ".join(f"{t.id}={t.nimi}" for t in tuotannot) or "ei yhtään"
@@ -104,6 +120,7 @@ async def _main(args: argparse.Namespace) -> None:
             nimi=args.nimi,
             tuotanto_id=args.tuotanto_id,
             kuski_id=args.kuski_id,
+            uusi_tuotanto=args.uusi_tuotanto,
         )
     print(f"Luotu: {kayttaja.email} (id={kayttaja.id}, rooli={kayttaja.rooli.value}, "
           f"tuotanto={kayttaja.tuotanto_id})")
@@ -116,6 +133,8 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--nimi")
     parser.add_argument("--tuotanto-id", type=int)
     parser.add_argument("--kuski-id", type=int)
+    parser.add_argument("--uusi-tuotanto", metavar="NIMI",
+                        help="luo samalla uuden tuotannon tällä nimellä")
     args = parser.parse_args(argv)
     try:
         asyncio.run(_main(args))
