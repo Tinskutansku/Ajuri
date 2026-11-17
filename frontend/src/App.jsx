@@ -1,5 +1,15 @@
-import { useState } from "react";
-import { C, FONTS } from "./ui.jsx";
+import { useEffect, useState } from "react";
+import { C, FONTS, Nappi } from "./ui.jsx";
+import { haeMina } from "./api.js";
+import {
+  ROOLI_NIMI,
+  asetaVanhenemisKasittelija,
+  haeIstunto,
+  paivitaKayttaja,
+  tyhjennaIstunto,
+  voiMuokata,
+} from "./istunto.js";
+import Kirjautuminen from "./Kirjautuminen.jsx";
 import Rekisteri from "./Rekisteri.jsx";
 import Pohjatiedot from "./Pohjatiedot.jsx";
 import Tehtavat from "./Tehtavat.jsx";
@@ -12,8 +22,54 @@ const TABS = [
   ["optimointi", "★ Optimointi"],
 ];
 
+// KUSKI saa vain lukea. Rekisteri, Pohjatiedot ja Tehtävät ovat
+// muokkausnäkymiä, joten kuski näkee vain ajolistan (Optimointi-välilehti
+// ilman optimointi- ja pois pelistä -nappeja). Backend estää muokkaukset
+// joka tapauksessa (403).
+const KUSKIN_TABS = ["optimointi"];
+
 export default function App() {
-  const [tab, setTab] = useState("rekisteri");
+  const [kayttaja, setKayttaja] = useState(() => haeIstunto()?.kayttaja ?? null);
+  const [ilmoitus, setIlmoitus] = useState(null);
+  const [tab, setTab] = useState(() => (voiMuokata(haeIstunto()?.kayttaja) ? "rekisteri" : "optimointi"));
+
+  // Mikä tahansa 401 tokenin kanssa (api.js) palauttaa kirjautumissivulle.
+  useEffect(() => {
+    asetaVanhenemisKasittelija(() => {
+      setKayttaja(null);
+      setIlmoitus("Istunto vanheni. Kirjaudu uudelleen.");
+    });
+    return () => asetaVanhenemisKasittelija(null);
+  }, []);
+
+  // Sivun päivityksen jälkeen tarkistetaan, että tallennettu token kelpaa
+  // yhä, ja päivitetään nimi ja rooli backendistä.
+  useEffect(() => {
+    if (!haeIstunto()) return;
+    haeMina()
+      .then((k) => {
+        paivitaKayttaja(k);
+        setKayttaja(k);
+      })
+      .catch(() => {
+        // 401 hoidetaan vanhenemiskäsittelijässä; verkkovirhe näkyy välilehdillä
+      });
+  }, []);
+
+  const kirjautunut = (k) => {
+    setIlmoitus(null);
+    setTab(voiMuokata(k) ? "rekisteri" : "optimointi");
+    setKayttaja(k);
+  };
+
+  const kirjauduUlos = () => {
+    tyhjennaIstunto();
+    setKayttaja(null);
+    setIlmoitus("Kirjauduit ulos.");
+  };
+
+  const muokkaaja = voiMuokata(kayttaja);
+  const tabs = muokkaaja ? TABS : TABS.filter(([k]) => KUSKIN_TABS.includes(k));
 
   return (
     <div style={{ minHeight: "100vh", background: C.paper, color: C.inkSolid, paddingBottom: 80 }}>
@@ -32,38 +88,59 @@ export default function App() {
           <span style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 12, fontWeight: 600, color: C.olive }}>
             demo
           </span>
+          {kayttaja && (
+            <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+              <span style={{ fontFamily: "'Archivo',sans-serif", fontSize: 13, fontWeight: 600, color: C.inkSolid }}>
+                {kayttaja.nimi}
+                <span style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 12, color: C.olive, marginLeft: 8 }}>
+                  {ROOLI_NIMI[kayttaja.rooli] ?? kayttaja.rooli}
+                </span>
+              </span>
+              <Nappi variant="ghost" onClick={kirjauduUlos} style={{ fontSize: 12, padding: "6px 14px" }}>
+                Kirjaudu ulos
+              </Nappi>
+            </div>
+          )}
         </div>
       </header>
 
-      <main style={{ maxWidth: 900, margin: "0 auto", padding: "20px 20px 0" }}>
-        <nav style={{ display: "flex", gap: 8, marginBottom: 22, flexWrap: "wrap" }}>
-          {TABS.map(([k, nimi]) => (
-            <button
-              key={k}
-              onClick={() => setTab(k)}
-              style={{
-                fontFamily: "'Archivo',sans-serif",
-                fontWeight: 700,
-                fontSize: 13,
-                cursor: "pointer",
-                padding: "8px 16px",
-                borderRadius: 999,
-                border: `2px solid ${C.line}`,
-                background: tab === k ? C.inkSolid : C.card,
-                color: tab === k ? C.card : C.inkSolid,
-                boxShadow: tab === k ? `3px 3px 0 ${C.orange}` : "none",
-              }}
-            >
-              {nimi}
-            </button>
-          ))}
-        </nav>
+      {!kayttaja && (
+        <main style={{ maxWidth: 900, margin: "0 auto", padding: "28px 16px 0" }}>
+          <Kirjautuminen onKirjautunut={kirjautunut} ilmoitus={ilmoitus} />
+        </main>
+      )}
 
-        {tab === "rekisteri" && <Rekisteri />}
-        {tab === "pohjatiedot" && <Pohjatiedot />}
-        {tab === "tehtavat" && <Tehtavat />}
-        {tab === "optimointi" && <Optimointi />}
-      </main>
+      {kayttaja && (
+        <main style={{ maxWidth: 900, margin: "0 auto", padding: "20px 20px 0" }}>
+          <nav style={{ display: "flex", gap: 8, marginBottom: 22, flexWrap: "wrap" }}>
+            {tabs.map(([k, nimi]) => (
+              <button
+                key={k}
+                onClick={() => setTab(k)}
+                style={{
+                  fontFamily: "'Archivo',sans-serif",
+                  fontWeight: 700,
+                  fontSize: 13,
+                  cursor: "pointer",
+                  padding: "8px 16px",
+                  borderRadius: 999,
+                  border: `2px solid ${C.line}`,
+                  background: tab === k ? C.inkSolid : C.card,
+                  color: tab === k ? C.card : C.inkSolid,
+                  boxShadow: tab === k ? `3px 3px 0 ${C.orange}` : "none",
+                }}
+              >
+                {nimi}
+              </button>
+            ))}
+          </nav>
+
+          {muokkaaja && tab === "rekisteri" && <Rekisteri />}
+          {muokkaaja && tab === "pohjatiedot" && <Pohjatiedot />}
+          {muokkaaja && tab === "tehtavat" && <Tehtavat />}
+          {(tab === "optimointi" || !muokkaaja) && <Optimointi voiMuokata={muokkaaja} />}
+        </main>
+      )}
     </div>
   );
 }

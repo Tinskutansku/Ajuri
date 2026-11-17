@@ -7,7 +7,7 @@ import Tulostus from "./Tulostus.jsx";
 import KuskitPelissa from "./KuskitPelissa.jsx";
 import Versiodiff from "./Versiodiff.jsx";
 
-export default function Optimointi() {
+export default function Optimointi({ voiMuokata = true }) {
   const [paivat, setPaivat] = useState([]);
   const [paivatVirhe, setPaivatVirhe] = useState(null);
   const [paivatLadattu, setPaivatLadattu] = useState(false);
@@ -161,14 +161,16 @@ export default function Optimointi() {
                 {valittuPaiva.wrap_arvio ? ` · wrap ${valittuPaiva.wrap_arvio.slice(0, 5)}` : ""}
               </span>
             )}
-            <Nappi variant="orange" onClick={() => optimoi()} disabled={kiireinen || !valittuId} style={{ marginLeft: "auto" }}>
-              {kiireinen ? "Lasketaan…" : tulos ? "↻ Optimoi uudelleen" : "★ Optimoi"}
-            </Nappi>
+            {voiMuokata && (
+              <Nappi variant="orange" onClick={() => optimoi()} disabled={kiireinen || !valittuId} style={{ marginLeft: "auto" }}>
+                {kiireinen ? "Lasketaan…" : tulos ? "↻ Optimoi uudelleen" : "★ Optimoi"}
+              </Nappi>
+            )}
           </div>
         )}
       </Kortti>
 
-      <KuskitPelissa paiva={valittuPaiva} onReoptimoi={reoptimoi} laskee={kiireinen} />
+      <KuskitPelissa paiva={valittuPaiva} onReoptimoi={reoptimoi} laskee={kiireinen} voiMuokata={voiMuokata} />
 
       {virhe && (
         <div
@@ -205,7 +207,7 @@ export default function Optimointi() {
 
       {!tulos && !kiireinen && !virhe && (
         <div style={{ textAlign: "center", padding: "60px 20px", fontFamily: "'Archivo',sans-serif", color: C.olive, fontWeight: 600 }}>
-          Valitse päivä ja paina ★ Optimoi.
+          {voiMuokata ? "Valitse päivä ja paina ★ Optimoi." : "Päivälle ei ole vielä ajolistaa."}
         </div>
       )}
       {laskee && (

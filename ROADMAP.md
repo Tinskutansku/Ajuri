@@ -73,7 +73,7 @@ viimeksi kirjautunut) ja sen Alembic-migraatio; roolin lukeminen tokenista
 - Päätetty (Tanja 15.11., PR #25, vaihtoehto A): `POST /tuotannot` → 403
   kaikille; uusi tuotanto luodaan `python -m app.luo_kayttaja --uusi-tuotanto`
 
-### K3 `[ ]` Frontend: kirjautumissivu
+### K3 `[PR #27]` Frontend: kirjautumissivu
 - Kirjautumissivu (email, salasana, näkyvät kenttäotsikot), uloskirjautuminen
   yläpalkista, kirjautuneen nimi ja rooli näkyviin
 - Token muistiin ja `sessionStorage`en (ei `localStorage`: välilehden

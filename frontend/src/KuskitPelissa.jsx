@@ -11,7 +11,7 @@ import { useEffect, useState } from "react";
 import { haeKuskit, haePaivaKuskit, paivitaPaivaKuski } from "./api.js";
 import { C, Kortti, Nappi, Badge, riviTyyli, vihje, kelloNyt } from "./ui.jsx";
 
-export default function KuskitPelissa({ paiva, onReoptimoi, laskee }) {
+export default function KuskitPelissa({ paiva, onReoptimoi, laskee, voiMuokata = true }) {
   const [rivit, setRivit] = useState([]);
   const [nimet, setNimet] = useState({});
   const [virhe, setVirhe] = useState(null);
@@ -75,20 +75,24 @@ export default function KuskitPelissa({ paiva, onReoptimoi, laskee }) {
             {nimet[r.kuski_id] ?? `Kuski ${r.kuski_id}`}
           </span>
           {r.tarjolla ? <Badge color={C.teal}>PELISSÄ</Badge> : <Badge color={C.rust}>POIS PELISTÄ</Badge>}
-          <Nappi
-            variant={r.tarjolla ? "ink" : "ghost"}
-            onClick={() => vaihda(r)}
-            disabled={laskee || kasittelyssa !== null}
-            style={{ marginLeft: "auto", fontSize: 12, padding: "6px 14px" }}
-          >
-            {kasittelyssa === r.id ? "Lasketaan…" : r.tarjolla ? "⛔ Pois pelistä" : "↩ Takaisin peliin"}
-          </Nappi>
+          {voiMuokata && (
+            <Nappi
+              variant={r.tarjolla ? "ink" : "ghost"}
+              onClick={() => vaihda(r)}
+              disabled={laskee || kasittelyssa !== null}
+              style={{ marginLeft: "auto", fontSize: 12, padding: "6px 14px" }}
+            >
+              {kasittelyssa === r.id ? "Lasketaan…" : r.tarjolla ? "⛔ Pois pelistä" : "↩ Takaisin peliin"}
+            </Nappi>
+          )}
         </div>
       ))}
-      <p style={vihje}>
-        Nappi vaihtaa kuskin tilan ja laskee ajolistan heti uudelleen tästä hetkestä ({kelloNyt()}). Kuitatut ja jo
-        alkaneet keikat pysyvät ennallaan, loput jaetaan pelissä oleville kuskeille.
-      </p>
+      {voiMuokata && (
+        <p style={vihje}>
+          Nappi vaihtaa kuskin tilan ja laskee ajolistan heti uudelleen tästä hetkestä ({kelloNyt()}). Kuitatut ja jo
+          alkaneet keikat pysyvät ennallaan, loput jaetaan pelissä oleville kuskeille.
+        </p>
+      )}
     </Kortti>
   );
 }
