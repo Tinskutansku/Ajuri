@@ -85,7 +85,16 @@ viimeksi kirjautunut) ja sen Alembic-migraatio; roolin lukeminen tokenista
 
 ## Vaihe L — Kovennukset
 
-**Esihyväksytty (Tanja 13.11.):** riippuvuus `slowapi`.
+Tanja kävi 16.11. läpi listan "15 tapaa, joilla sovellus hakkeroidaan"
+AJURIa vasten. Löydökset on lisätty tähän vaiheeseen sekä kohtaan O1.
+
+**Esihyväksytty (Tanja 13.11. ja 16.11.):** riippuvuus `slowapi`;
+CI-muutos L4:n haavoittuvuusskannausta varten (vain se).
+
+### L0 `[PR #28]` Tietokannan ja backendin portit vain omalle koneelle
+Tehty Tanjan kanssa 16.11. `docker-compose.yml` sitoo portit 5433 ja 8000
+osoitteeseen `127.0.0.1`. Aiemmin PostgreSQL (salasana `ajuri`) näkyi
+koneen kaikkiin verkkoliitäntöihin.
 
 ### L1 `[ ]` Tuotantoasetukset ja turvallinen oletus
 - `AJURI_YMPARISTO` = `dev` | `prod`. Prodissa käynnistys kaatuu selkeään
@@ -101,12 +110,33 @@ viimeksi kirjautunut) ja sen Alembic-migraatio; roolin lukeminen tokenista
 - `POST /auth/kirjaudu`: esim. 5 yritystä / min / IP → 429
 - `GET /osoitteet/ehdota`: esim. 60 / min / käyttäjä (Photonin
   reilun käytön periaate)
+- `POST /paivat/{id}/optimoi`: esim. 6 / min / käyttäjä. Yksi kutsu
+  varaa työprosessin noin minuutiksi, joten toistuvat kutsut eri päiville
+  voisivat tukkia laskennan kaikilta. Saman päivän päällekkäisyys on jo
+  estetty (409).
+- Rajoitus lasketaan kirjautuneen käyttäjän mukaan, ja kirjautumisessa
+  IP-osoitteen mukaan. Kerro PR:ssä, miten IP luetaan Renderin
+  välityspalvelimen takaa.
 - **Valmis kun:** testit 429-rajoille
 
 ### L3 `[ ]` Syötteiden rajat
 - Tarkista, että kaikilla merkkijonokentillä on `max_length` ja numeroilla
   järkevät rajat (esim. henkilömäärä, aikaraja). Lisää puuttuvat.
+- Erityisesti `OptimointiPyynto.aikaraja_s`: yläraja, esim. 60 s. Nyt
+  asiakas voi pyytää kuinka pitkän ratkaisun tahansa.
+- Ei negatiivisia määriä, hintoja eikä bufferiaikoja
 - **Valmis kun:** testit liian pitkille ja negatiivisille arvoille (422)
+
+### L4 `[ ]` Riippuvuuksien haavoittuvuusskannaus CI:hin
+- Uusi CI-job: `pip-audit -r requirements.txt` ja frontissa
+  `npm audit --audit-level=high --omit=dev`
+- Job ei aluksi ole pakollinen tarkistus (Tanja lisää sen branch
+  protectioniin itse, jos haluaa), jotta uusi haavoittuvuustieto ei estä
+  kaikkia mergejä yhdessä yössä
+- Jos skannaus löytää haavoittuvuuden nyt, korjaa päivittämällä riippuvuus
+  (versiopäivitys on esihyväksytty vain tähän kohtaan), tai kerro PR:ssä,
+  miksi päivitys ei onnistu
+- **Valmis kun:** job ajautuu PR:ssä ja tulos näkyy
 
 ## Vaihe M — Julkaisu demoksi (portfolio)
 
@@ -174,9 +204,17 @@ näkee vain omat keikkansa.
   virheet riveittäin, tunnistetut sarakkeet
 - `POST /tuotannot/{id}/tuonti` vahvistaa ja tallentaa (osoitteet
   geokoodataan normaalisti)
-- Rajat: tiedostokoko, rivimäärä, vain xlsx
+- Rajat: tiedostokoko (esim. 2 Mt), rivimäärä (esim. 500)
+- Tiedoston todellinen tyyppi tarkistetaan sisällöstä eikä päätteestä
+  (xlsx on zip: tarkista zip-rakenne ja `[Content_Types].xml`)
+- Suoja zip-pommia vastaan: purettu koko ja tiedostomäärä rajattu ennen
+  kuin openpyxl lukee tiedoston. Kaavoja ei suoriteta, vain arvot luetaan
+  (`data_only=True`).
+- Tuotu teksti tallennetaan tekstinä. Jos joskus tehdään Excel-vienti,
+  `=`-, `+`-, `-`- ja `@`-alkuiset solut pitää escapettaa (CSV/Excel-injektio).
 - **Valmis kun:** testit esimerkkitiedostoilla (`tests/data/`), myös
-  rikkinäinen tiedosto ja puuttuvat sarakkeet
+  rikkinäinen tiedosto, puuttuvat sarakkeet, `.xlsx`-päätteinen muu tiedosto
+  ja zip-pommi
 
 ### O2 `[ ]` Frontend: tuonti Rekisteriin
 - "Tuo Excelistä" → esikatselutaulukko → vahvista
@@ -187,5 +225,4 @@ näkee vain omat keikkansa.
 
 Taksi-fallback · työvuororaportti · korjausehdotukset sijoittamattomille ·
 "julkaistu versio vanhentunut" yleisesti · itseoppivat bufferit ·
-oma reititinpalvelu · riippuvuuksien tietoturvaskannaus CI:hin
-(CI-muutos, vaatii päätöksen). Ks. `docs/tuotekartta.md`.
+oma reititinpalvelu. Ks. `docs/tuotekartta.md`.
