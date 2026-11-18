@@ -198,6 +198,8 @@ def test_prod_ilman_salaisuutta_kaataa_kaynnistyksen(monkeypatch):
 def test_prod_salaisuus_ymparistomuuttujasta(monkeypatch):
     monkeypatch.setenv("AJURI_YMPARISTO", "prod")
     monkeypatch.setenv("JWT_SECRET", "x" * 48)
+    # L1: prod vaatii myös oman tietokantasalasanan (ks. test_tuotantoasetukset.py).
+    monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://ajuri:vahva-salasana@db:5432/ajuri")
     s = Settings(_env_file=None)
     assert s.ajuri_ymparisto == "prod" and s.jwt_secret == "x" * 48
 
