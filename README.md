@@ -270,7 +270,7 @@ python -m app.luo_kayttaja --uusi-tuotanto "Elokuva X" --email tanja@example.com
 `GET /auth/mina` kertoo kirjautuneen käyttäjän (`Authorization: Bearer <token>`).
 
 Kaikki muut reitit vaativat tokenin, paitsi `GET /`, `GET /health` ja
-dokumentaatio (`/docs`, `/openapi.json`). Ilman voimassa olevaa tokenia
+kehityksessä dokumentaatio (`/docs`, `/openapi.json`). Ilman voimassa olevaa tokenia
 vastaus on 401. KUSKI-rooli saa vain lukea: kaikki muokkaukset (POST, PUT,
 PATCH, DELETE) antavat 403. Käyttäjä näkee vain oman tuotantonsa datan;
 toisen tuotannon rivit antavat 404 kuten olemattomat.
@@ -288,6 +288,28 @@ Tokenin allekirjoitusavain luetaan ympäristömuuttujasta `JWT_SECRET`.
 Kehityksessä (`AJURI_YMPARISTO=dev`, oletus) käytetään sisäänrakennettua
 kehitysavainta, jos muuttujaa ei ole asetettu. Kun `AJURI_YMPARISTO=prod`,
 puuttuva `JWT_SECRET` kaataa käynnistyksen.
+
+### Tuotantoasetukset (`AJURI_YMPARISTO=prod`)
+
+Prodissa sovellus kieltäytyy käynnistymästä ja luettelee kaikki puutteet
+kerralla, jos
+
+- `JWT_SECRET` puuttuu, on alle 32 merkkiä tai on kehityksen oletusavain
+- `DATABASE_URL`:ssa ei ole salasanaa tai se on kehityksen oletus (`ajuri`)
+- `CORS_ORIGINS` sisältää `*`
+
+Lisäksi prodissa
+
+- `/docs`, `/redoc` ja `/openapi.json` ovat pois päältä (`GET /` palauttaa
+  `"dokumentaatio": null`)
+- CORS sallii vain `CORS_ORIGINS`-muuttujan osoitteet. Ilman muuttujaa
+  mitään vierasta osoitetta ei sallita. Muoto on JSON-lista:
+  `CORS_ORIGINS=["https://ajuri.example"]`
+
+Kaikissa ympäristöissä odottamaton virhe palauttaa 500-vastauksen yleisellä
+viestillä. Traceback ja mahdollinen SQL menevät vain palvelimen lokiin.
+Jokaisessa vastauksessa ovat turvaotsakkeet `X-Content-Type-Options: nosniff`,
+`Referrer-Policy: no-referrer` ja `X-Frame-Options: DENY`.
 
 Yksityiskohtaiset käynnistys- ja vianetsintäohjeet:
 [docs/ajuri-kaynnistys.md](docs/ajuri-kaynnistys.md).

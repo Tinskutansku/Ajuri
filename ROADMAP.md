@@ -73,7 +73,7 @@ viimeksi kirjautunut) ja sen Alembic-migraatio; roolin lukeminen tokenista
 - Päätetty (Tanja 15.11., PR #25, vaihtoehto A): `POST /tuotannot` → 403
   kaikille; uusi tuotanto luodaan `python -m app.luo_kayttaja --uusi-tuotanto`
 
-### K3 `[PR #27]` Frontend: kirjautumissivu
+### K3 `[x]` Frontend: kirjautumissivu
 - Kirjautumissivu (email, salasana, näkyvät kenttäotsikot), uloskirjautuminen
   yläpalkista, kirjautuneen nimi ja rooli näkyviin
 - Token muistiin ja `sessionStorage`en (ei `localStorage`: välilehden
@@ -91,12 +91,12 @@ AJURIa vasten. Löydökset on lisätty tähän vaiheeseen sekä kohtaan O1.
 **Esihyväksytty (Tanja 13.11. ja 16.11.):** riippuvuus `slowapi`;
 CI-muutos L4:n haavoittuvuusskannausta varten (vain se).
 
-### L0 `[PR #28]` Tietokannan ja backendin portit vain omalle koneelle
+### L0 `[x]` Tietokannan ja backendin portit vain omalle koneelle
 Tehty Tanjan kanssa 16.11. `docker-compose.yml` sitoo portit 5433 ja 8000
 osoitteeseen `127.0.0.1`. Aiemmin PostgreSQL (salasana `ajuri`) näkyi
 koneen kaikkiin verkkoliitäntöihin.
 
-### L1 `[ ]` Tuotantoasetukset ja turvallinen oletus
+### L1 `[PR #29]` Tuotantoasetukset ja turvallinen oletus
 - `AJURI_YMPARISTO` = `dev` | `prod`. Prodissa käynnistys kaatuu selkeään
   virheeseen, jos `JWT_SECRET` puuttuu tai on lyhyt, tai jos tietokannan
   salasana on `ajuri`.
