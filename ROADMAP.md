@@ -96,7 +96,7 @@ Tehty Tanjan kanssa 16.11. `docker-compose.yml` sitoo portit 5433 ja 8000
 osoitteeseen `127.0.0.1`. Aiemmin PostgreSQL (salasana `ajuri`) näkyi
 koneen kaikkiin verkkoliitäntöihin.
 
-### L1 `[PR #29]` Tuotantoasetukset ja turvallinen oletus
+### L1 `[x]` Tuotantoasetukset ja turvallinen oletus
 - `AJURI_YMPARISTO` = `dev` | `prod`. Prodissa käynnistys kaatuu selkeään
   virheeseen, jos `JWT_SECRET` puuttuu tai on lyhyt, tai jos tietokannan
   salasana on `ajuri`.
@@ -106,7 +106,7 @@ koneen kaikkiin verkkoliitäntöihin.
   `X-Frame-Options`)
 - **Valmis kun:** testit prod-asetusten tarkistuksille ja otsakkeille
 
-### L2 `[ ]` Pyyntörajoitukset
+### L2 `[PR #30]` Pyyntörajoitukset
 - `POST /auth/kirjaudu`: esim. 5 yritystä / min / IP → 429
 - `GET /osoitteet/ehdota`: esim. 60 / min / käyttäjä (Photonin
   reilun käytön periaate)

@@ -1,7 +1,7 @@
 from typing import Literal
 from urllib.parse import urlsplit
 
-from pydantic import model_validator
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Kehityksen oletussalaisuus. Kelpaa VAIN kun AJURI_YMPARISTO=dev - muussa
@@ -44,6 +44,16 @@ class Settings(BaseSettings):
     ajuri_ymparisto: Literal["dev", "prod"] = "dev"
     jwt_secret: str | None = None
     jwt_voimassa_h: int = 12
+
+    # Pyyntörajoitukset (app/rajoitukset.py, ROADMAP L2). Muoto on
+    # limits-kirjaston: "5/minute", "100/hour", "10/30 seconds".
+    rajoitukset_kaytossa: bool = True
+    rajoitus_kirjautuminen: str = "5/minute"       # IP-osoitetta kohden
+    rajoitus_osoite_ehdotukset: str = "60/minute"  # käyttäjää kohden
+    rajoitus_optimointi: str = "6/minute"          # käyttäjää kohden
+    # Montako luotettua välityspalvelinta on backendin edessä. 0 = ei
+    # yhtään, IP luetaan suoraan yhteydestä. Ks. asiakkaan_ip().
+    luotetut_valityspalvelimet: int = Field(default=0, ge=0, le=5)
 
     @model_validator(mode="after")
     def _tarkista_jwt(self) -> "Settings":

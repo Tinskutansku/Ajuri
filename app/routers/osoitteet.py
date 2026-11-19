@@ -1,9 +1,10 @@
 import logging
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 
+from app.rajoitukset import kayttajan_avain, limiter, raja_osoite_ehdotukset
 from app.services.osoite_ehdottaja import OsoiteEhdottaja, get_osoite_ehdottaja
 
 logger = logging.getLogger(__name__)
@@ -18,7 +19,10 @@ class OsoiteEhdotus(BaseModel):
 
 
 @router.get("/ehdota", response_model=list[OsoiteEhdotus])
+# Käyttäjää kohden: Photonin reilun käytön periaate (ROADMAP L2).
+@limiter.limit(raja_osoite_ehdotukset, key_func=kayttajan_avain)
 async def ehdota_osoitteita(
+    request: Request,  # slowapi tarvitsee pyynnön
     q: str = Query(..., min_length=3, max_length=200, description="Hakuteksti, vähintään 3 merkkiä"),
     raja: int = Query(5, ge=1, le=10),
     ehdottaja: OsoiteEhdottaja = Depends(get_osoite_ehdottaja),

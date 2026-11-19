@@ -311,6 +311,25 @@ viestillä. Traceback ja mahdollinen SQL menevät vain palvelimen lokiin.
 Jokaisessa vastauksessa ovat turvaotsakkeet `X-Content-Type-Options: nosniff`,
 `Referrer-Policy: no-referrer` ja `X-Frame-Options: DENY`.
 
+### Pyyntörajoitukset
+
+Raja ylittyy → `429` ja `Retry-After`-otsake. Rajat ovat ympäristö-
+muuttujia (muoto `5/minute`, `100/hour`):
+
+| Reitti | Oletus | Kenen mukaan | Muuttuja |
+|---|---|---|---|
+| `POST /auth/kirjaudu` | 5 / min | IP-osoite | `RAJOITUS_KIRJAUTUMINEN` |
+| `GET /osoitteet/ehdota` | 60 / min | käyttäjä | `RAJOITUS_OSOITE_EHDOTUKSET` |
+| `POST /paivat/{id}/optimoi` | 6 / min | käyttäjä | `RAJOITUS_OPTIMOINTI` |
+
+`RAJOITUKSET_KAYTOSSA=false` kytkee kaikki pois. Laskurit ovat prosessin
+muistissa, mikä riittää yhdelle uvicorn-prosessille.
+
+Välityspalvelimen (esim. Render) takana yhteyden osoite on välityspalvelimen,
+ei käyttäjän. Silloin `LUOTETUT_VALITYSPALVELIMET=N` lukee käyttäjän IP:n
+`X-Forwarded-For`-otsakkeesta N:nneksi oikealta. Vasemmanpuoleisinta arvoa ei
+käytetä, koska asiakas voi väärentää sen. Oletus 0 = otsaketta ei lueta.
+
 Yksityiskohtaiset käynnistys- ja vianetsintäohjeet:
 [docs/ajuri-kaynnistys.md](docs/ajuri-kaynnistys.md).
 
