@@ -5,9 +5,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.datastructures import MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
+from slowapi.errors import RateLimitExceeded
 from sqlalchemy.exc import InterfaceError, OperationalError
 
 from app.config import Settings, settings
+from app.rajoitukset import liikaa_pyyntoja, limiter
 from app.rooli import vaadi_kirjautuminen
 from app.services.laskenta import sammuta_pooli
 from app.routers import (
@@ -146,6 +148,10 @@ def luo_sovellus(asetukset: Settings) -> FastAPI:
         osoitteet.router,
     ):
         app.include_router(reititin, dependencies=kirjautuneille)
+
+    # Pyyntörajoitukset (ROADMAP L2): slowapi lukee rajoittimen app.statesta.
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, liikaa_pyyntoja)
 
     for virhetyyppi in (OSError, OperationalError, InterfaceError):
         app.add_exception_handler(virhetyyppi, tietokantayhteys_virhe)

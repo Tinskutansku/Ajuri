@@ -10,6 +10,7 @@ from app.auth import luo_token
 from app.database import get_db
 from app.main import app
 from app.models import Base, Kayttaja, KayttajaRooli, Tuotanto
+from app.rajoitukset import limiter
 from app.services.geocoder_client import GeocoderClient, get_geocoder_client
 from app.services.osoite_ehdottaja import Ehdotus, OsoiteEhdottaja, get_osoite_ehdottaja
 
@@ -69,6 +70,9 @@ async def sovellus(engine: AsyncEngine) -> AsyncGenerator[None, None]:
     # get_router_client:lle).
     app.dependency_overrides[get_geocoder_client] = lambda: FakeGeocoder()
     app.dependency_overrides[get_osoite_ehdottaja] = lambda: FakeOsoiteEhdottaja()
+    # Pyyntörajoitusten laskurit ovat prosessin muistissa: jokainen testi
+    # aloittaa täysillä kiintiöillä (ROADMAP L2).
+    limiter.reset()
     yield
     app.dependency_overrides.clear()
 

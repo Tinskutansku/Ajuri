@@ -8,7 +8,7 @@ import asyncio
 from dataclasses import replace
 from datetime import time
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -27,6 +27,7 @@ from app.models import (
     Tuotanto,
 )
 from app.omistus import hae_paiva
+from app.rajoitukset import kayttajan_avain, limiter, raja_optimointi
 from app.response_filter import OPTIMOINTIVASTAUS_KUSKILTA_PIILOTETTAVAT, json_vastaus
 from app.rooli import kirjautunut_kayttaja, nykyinen_rooli
 from app.schemas import (
@@ -104,7 +105,11 @@ async def optimoinnin_tila(
 
 
 @router.post("/paivat/{paiva_id}/optimoi", response_model=OptimointiVastaus)
+# Käyttäjää kohden (ROADMAP L2): yksi kutsu varaa työprosessin noin
+# minuutiksi, joten toistuvat kutsut eri päiville tukkisivat laskennan.
+@limiter.limit(raja_optimointi, key_func=kayttajan_avain)
 async def optimoi_paiva(
+    request: Request,  # slowapi tarvitsee pyynnön
     paiva_id: int,
     pyynto: OptimointiPyynto,
     db: AsyncSession = Depends(get_db),

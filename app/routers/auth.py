@@ -6,7 +6,7 @@ kaikki muutkin reitit käyttävät sitä (ROADMAP K2).
 
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,6 +19,7 @@ from app.auth import (
 from app.config import settings
 from app.database import get_db
 from app.models import Kayttaja
+from app.rajoitukset import asiakkaan_ip, limiter, raja_kirjautuminen
 from app.rooli import kirjautunut_kayttaja
 from app.schemas import KayttajaRead, KirjautumisPyynto, TokenVastaus
 
@@ -27,8 +28,16 @@ router = APIRouter(prefix="/auth", tags=["kirjautuminen"])
 # Sama viesti kaikille epäonnistumisille: ei paljasteta, oliko email
 # tuntematon, salasana väärä vai käyttäjä passivoitu.
 VAARA_TUNNUS = "Väärä sähköposti tai salasana."
+
+
 @router.post("/kirjaudu", response_model=TokenVastaus)
-async def kirjaudu(pyynto: KirjautumisPyynto, db: AsyncSession = Depends(get_db)):
+# IP-osoitteen mukaan, onnistuneet ja epäonnistuneet yhteensä (ROADMAP L2).
+@limiter.limit(raja_kirjautuminen, key_func=asiakkaan_ip)
+async def kirjaudu(
+    request: Request,  # slowapi tarvitsee pyynnön
+    pyynto: KirjautumisPyynto,
+    db: AsyncSession = Depends(get_db),
+):
     email = pyynto.email.strip().lower()
     kayttaja = (
         await db.execute(select(Kayttaja).where(func.lower(Kayttaja.email) == email))
