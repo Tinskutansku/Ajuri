@@ -106,7 +106,7 @@ koneen kaikkiin verkkoliitäntöihin.
   `X-Frame-Options`)
 - **Valmis kun:** testit prod-asetusten tarkistuksille ja otsakkeille
 
-### L2 `[PR #30]` Pyyntörajoitukset
+### L2 `[x]` Pyyntörajoitukset
 - `POST /auth/kirjaudu`: esim. 5 yritystä / min / IP → 429
 - `GET /osoitteet/ehdota`: esim. 60 / min / käyttäjä (Photonin
   reilun käytön periaate)

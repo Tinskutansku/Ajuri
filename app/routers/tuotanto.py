@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -75,7 +75,7 @@ async def poista_tuotanto(
 
 @router.post("/{tuotanto_id}/geokoodaa", response_model=GeokoodausTulos)
 async def geokoodaa_tuotanto(
-    tuotanto_id: int, raja: int = 15,
+    tuotanto_id: int, raja: int = Query(15, ge=1, le=50),
     db: AsyncSession = Depends(get_db), geocoder: GeocoderClient = Depends(get_geocoder_client),
     kayttaja: Kayttaja = Depends(kirjautunut_kayttaja),
 ):

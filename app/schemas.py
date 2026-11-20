@@ -4,10 +4,39 @@ Create-malli (syöte) ja Read-malli (vastaus, sisältää id:n)."""
 from __future__ import annotations
 
 from datetime import date, datetime, time
+from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.models import HenkiloTyyppi, KayttajaRooli, SopimusTyyppi, TehtavaTyyppi
+
+# ---------------------------------------------------------------------------
+# Syötteiden rajat (ROADMAP L3)
+#
+# Merkkijonojen ylärajat vastaavat tietokannan sarakkeiden pituuksia
+# (app/models.py), jotta liian pitkä arvo saa selkeän 422:n eikä kaadu
+# PostgreSQL:ssä 500:aan. Text-sarakkeille (huomiot, ajo-ohjeet) raja on
+# TEKSTI_MAX, ettei yksittäinen pyyntö voi tallentaa megatavuja.
+# ---------------------------------------------------------------------------
+
+NIMI_MAX = 200
+OSOITE_MAX = 300
+PUHELIN_MAX = 50
+LYHYT_MAX = 20        # rekisteri, päivän numero ("22/49")
+OSASTO_MAX = 100
+TEKSTI_MAX = 2000
+
+BUFFERI_MAX_MIN = 240         # palveluaika noudossa, enintään 4 h
+TUNTIHINTA_MAX_EUR = 1000.0
+PAIKAT_MAX = 100
+HENKILOITA_MAX = 100
+JARJESTYS_MAX = 1000
+OPTIMOINTI_AIKARAJA_MAX_S = 60
+OPTIMOINTI_MINUUTIT_MAX = 240  # max_etuajassa_min, max_kyytiaika_lisa_min
+KELLONAIKA_HHMM = r"^([01][0-9]|2[0-3]):[0-5][0-9]$"
+
+Lat = Annotated[float, Field(ge=-90, le=90)]
+Lon = Annotated[float, Field(ge=-180, le=180)]
 
 # ---------------------------------------------------------------------------
 # Tuotanto
@@ -15,10 +44,10 @@ from app.models import HenkiloTyyppi, KayttajaRooli, SopimusTyyppi, TehtavaTyypp
 
 
 class TuotantoBase(BaseModel):
-    nimi: str
+    nimi: str = Field(max_length=NIMI_MAX)
     alkaa: date | None = None
     paattyy: date | None = None
-    tuntihinta_eur: float = 22.0
+    tuntihinta_eur: float = Field(default=22.0, ge=0, le=TUNTIHINTA_MAX_EUR)
 
 
 class TuotantoCreate(TuotantoBase):
@@ -39,18 +68,18 @@ class TuotantoRead(TuotantoBase):
 
 class HenkiloBase(BaseModel):
     tyyppi: HenkiloTyyppi
-    nimi: str
-    roolinimi: str | None = None
-    titteli: str | None = None
-    puhelin: str | None = None
-    osoite: str | None = None
-    lat: float | None = None
-    lon: float | None = None
+    nimi: str = Field(max_length=NIMI_MAX)
+    roolinimi: str | None = Field(default=None, max_length=NIMI_MAX)
+    titteli: str | None = Field(default=None, max_length=NIMI_MAX)
+    puhelin: str | None = Field(default=None, max_length=PUHELIN_MAX)
+    osoite: str | None = Field(default=None, max_length=OSOITE_MAX)
+    lat: Lat | None = None
+    lon: Lon | None = None
     oletus_oma_auto: bool = False
     oletus_yksin: bool = False
-    nouto_bufferi_min: int = 0
+    nouto_bufferi_min: int = Field(default=0, ge=0, le=BUFFERI_MAX_MIN)
     max_etuajassa_min: int | None = Field(default=None, ge=0, le=240)
-    huomiot: str | None = None
+    huomiot: str | None = Field(default=None, max_length=TEKSTI_MAX)
     aktiivinen: bool = True
 
 
@@ -71,14 +100,14 @@ class HenkiloRead(HenkiloBase):
 
 
 class KuskiBase(BaseModel):
-    nimi: str
-    puhelin: str | None = None
+    nimi: str = Field(max_length=NIMI_MAX)
+    puhelin: str | None = Field(default=None, max_length=PUHELIN_MAX)
     sopimus: SopimusTyyppi
-    tuntihinta_eur: float | None = None
-    koti_osoite: str | None = None
-    koti_lat: float | None = None
-    koti_lon: float | None = None
-    pickup_bufferi_min: int = 0
+    tuntihinta_eur: float | None = Field(default=None, ge=0, le=TUNTIHINTA_MAX_EUR)
+    koti_osoite: str | None = Field(default=None, max_length=OSOITE_MAX)
+    koti_lat: Lat | None = None
+    koti_lon: Lon | None = None
+    pickup_bufferi_min: int = Field(default=0, ge=0, le=BUFFERI_MAX_MIN)
     aktiivinen: bool = True
 
 
@@ -99,14 +128,14 @@ class KuskiRead(KuskiBase):
 
 
 class AjoneuvoBase(BaseModel):
-    nimi: str
-    rekisteri: str | None = None
-    mukavuuspaikat: int = 3
-    max_paikat: int = 4
-    osasto: str | None = None
+    nimi: str = Field(max_length=NIMI_MAX)
+    rekisteri: str | None = Field(default=None, max_length=LYHYT_MAX)
+    mukavuuspaikat: int = Field(default=3, ge=1, le=PAIKAT_MAX)
+    max_paikat: int = Field(default=4, ge=1, le=PAIKAT_MAX)
+    osasto: str | None = Field(default=None, max_length=OSASTO_MAX)
     kaytossa_alkaen: date | None = None
     kaytossa_asti: date | None = None
-    huomiot: str | None = None
+    huomiot: str | None = Field(default=None, max_length=TEKSTI_MAX)
 
 
 class AjoneuvoCreate(AjoneuvoBase):
@@ -126,11 +155,11 @@ class AjoneuvoRead(AjoneuvoBase):
 
 
 class LokaatioBase(BaseModel):
-    nimi: str
-    osoite: str | None = None
-    lat: float | None = None
-    lon: float | None = None
-    ajo_ohjeet: str | None = None
+    nimi: str = Field(max_length=NIMI_MAX)
+    osoite: str | None = Field(default=None, max_length=OSOITE_MAX)
+    lat: Lat | None = None
+    lon: Lon | None = None
+    ajo_ohjeet: str | None = Field(default=None, max_length=TEKSTI_MAX)
     aktiivinen: bool = True
 
 
@@ -161,11 +190,11 @@ class KayttoPaiva(BaseModel):
 
 class KuvauspaivaBase(BaseModel):
     pvm: date
-    paiva_nro: str | None = None
+    paiva_nro: str | None = Field(default=None, max_length=LYHYT_MAX)
     call_time: time
     lounas: time | None = None
     wrap_arvio: time | None = None
-    huomiot: str | None = None
+    huomiot: str | None = Field(default=None, max_length=TEKSTI_MAX)
 
 
 class KuvauspaivaCreate(KuvauspaivaBase):
@@ -186,7 +215,7 @@ class KuvauspaivaRead(KuvauspaivaBase):
 
 class PaivaLokaatioBase(BaseModel):
     lokaatio_id: int
-    jarjestys: int = 1
+    jarjestys: int = Field(default=1, ge=0, le=JARJESTYS_MAX)
     siirtyma_klo: time | None = None
 
 
@@ -213,7 +242,7 @@ class PaivaHenkiloBase(BaseModel):
     ei_paluuta: bool = False
     siirtyy: bool = True
     siirtyma_klo: time | None = None
-    huomiot: str | None = None
+    huomiot: str | None = Field(default=None, max_length=TEKSTI_MAX)
 
 
 class PaivaHenkiloCreate(PaivaHenkiloBase):
@@ -260,15 +289,15 @@ class PaivaKuskiRead(PaivaKuskiBase):
 
 class TehtavaBase(BaseModel):
     tyyppi: TehtavaTyyppi
-    nimi: str
+    nimi: str = Field(max_length=OSOITE_MAX)
     henkilo_id: int | None = None
-    henkiloita: int = 1
-    mista_osoite: str
-    mista_lat: float | None = None
-    mista_lon: float | None = None
-    mihin_osoite: str
-    mihin_lat: float | None = None
-    mihin_lon: float | None = None
+    henkiloita: int = Field(default=1, ge=0, le=HENKILOITA_MAX)  # 0 = tavara
+    mista_osoite: str = Field(max_length=OSOITE_MAX)
+    mista_lat: Lat | None = None
+    mista_lon: Lon | None = None
+    mihin_osoite: str = Field(max_length=OSOITE_MAX)
+    mihin_lat: Lat | None = None
+    mihin_lon: Lon | None = None
     nouto_aikaisintaan: time | None = None
     nouto_viimeistaan: time | None = None
     perilla_aikaisintaan: time | None = None
@@ -277,7 +306,7 @@ class TehtavaBase(BaseModel):
     aktiivinen: bool = True
     lukittu_kuski_id: int | None = None
     yksin: bool = False
-    huomiot: str | None = None
+    huomiot: str | None = Field(default=None, max_length=TEKSTI_MAX)
 
 
 class TehtavaCreate(TehtavaBase):
@@ -382,10 +411,12 @@ class VersioDiff(BaseModel):
 
 
 class OptimointiPyynto(BaseModel):
-    aikaraja_s: int = 15
-    max_etuajassa_min: int = 30
-    max_kyytiaika_lisa_min: int = 25
-    nyt: str | None = None
+    # Yläraja (ROADMAP L3): muuten asiakas voisi varata työprosessin
+    # kuinka pitkäksi aikaa tahansa yhdellä kutsulla.
+    aikaraja_s: int = Field(default=15, ge=1, le=OPTIMOINTI_AIKARAJA_MAX_S)
+    max_etuajassa_min: int = Field(default=30, ge=0, le=OPTIMOINTI_MINUUTIT_MAX)
+    max_kyytiaika_lisa_min: int = Field(default=25, ge=0, le=OPTIMOINTI_MINUUTIT_MAX)
+    nyt: str | None = Field(default=None, pattern=KELLONAIKA_HHMM)  # "HH:MM"
     pohjaversio_id: int | None = None
     skenaariot: bool = True
 
