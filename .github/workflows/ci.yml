@@ -66,3 +66,28 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run build
+
+  # Riippuvuuksien tunnetut haavoittuvuudet (ROADMAP L4). Erillinen job,
+  # jota ei ole merkitty pakolliseksi tarkistukseksi: uusi haavoittuvuustieto
+  # näkyy punaisena, mutta ei estä mergejä ennen kuin Tanja niin päättää
+  # (branch protection).
+  audit:
+    name: Haavoittuvuusskannaus (pip-audit + npm audit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: pip install pip-audit
+      - name: Python-riippuvuudet
+        run: pip-audit -r requirements.txt
+      - name: Frontendin ajonaikaiset riippuvuudet
+        # Ajetaan, vaikka Python-skannaus löytäisi jotain, jotta molemmat tulokset näkyvät
+        if: success() || failure()
+        working-directory: frontend
+        run: npm audit --audit-level=high --omit=dev
