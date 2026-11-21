@@ -106,7 +106,7 @@ koneen kaikkiin verkkoliitäntöihin.
   `X-Frame-Options`)
 - **Valmis kun:** testit prod-asetusten tarkistuksille ja otsakkeille
 
-### L2 `[PR #30]` Pyyntörajoitukset
+### L2 `[x]` Pyyntörajoitukset
 - `POST /auth/kirjaudu`: esim. 5 yritystä / min / IP → 429
 - `GET /osoitteet/ehdota`: esim. 60 / min / käyttäjä (Photonin
   reilun käytön periaate)
@@ -119,7 +119,7 @@ koneen kaikkiin verkkoliitäntöihin.
   välityspalvelimen takaa.
 - **Valmis kun:** testit 429-rajoille
 
-### L3 `[ ]` Syötteiden rajat
+### L3 `[PR #31]` Syötteiden rajat
 - Tarkista, että kaikilla merkkijonokentillä on `max_length` ja numeroilla
   järkevät rajat (esim. henkilömäärä, aikaraja). Lisää puuttuvat.
 - Erityisesti `OptimointiPyynto.aikaraja_s`: yläraja, esim. 60 s. Nyt
