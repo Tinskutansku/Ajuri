@@ -127,7 +127,7 @@ koneen kaikkiin verkkoliitäntöihin.
 - Ei negatiivisia määriä, hintoja eikä bufferiaikoja
 - **Valmis kun:** testit liian pitkille ja negatiivisille arvoille (422)
 
-### L4 `[ ]` Riippuvuuksien haavoittuvuusskannaus CI:hin
+### L4 `[PR #32]` Riippuvuuksien haavoittuvuusskannaus CI:hin
 - Uusi CI-job: `pip-audit -r requirements.txt` ja frontissa
   `npm audit --audit-level=high --omit=dev`
 - Job ei aluksi ole pakollinen tarkistus (Tanja lisää sen branch
