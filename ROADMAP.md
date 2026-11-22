@@ -144,7 +144,7 @@ koneen kaikkiin verkkoliitäntöihin.
 ympäristömuuttujat, käynnistyskomennot). Tanja luo itse tilin ja asettaa
 salaisuudet; Claude ei koske niihin.
 
-### M1 `[ ]` Render-julkaisu
+### M1 `[PR #33]` Render-julkaisu
 - `render.yaml`: backend (Docker), frontend (static site), Render Postgres
 - Backend ajaa `alembic upgrade head` ennen käynnistystä
 - `VITE_API_BASE` frontin buildiin, `CORS_ORIGINS` backendille
