@@ -1,7 +1,7 @@
 from typing import Literal
 from urllib.parse import urlsplit
 
-from pydantic import Field, model_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Kehityksen oletussalaisuus. Kelpaa VAIN kun AJURI_YMPARISTO=dev - muussa
@@ -54,6 +54,18 @@ class Settings(BaseSettings):
     # Montako luotettua välityspalvelinta on backendin edessä. 0 = ei
     # yhtään, IP luetaan suoraan yhteydestä. Ks. asiakkaan_ip().
     luotetut_valityspalvelimet: int = Field(default=0, ge=0, le=5)
+
+    @field_validator("database_url")
+    @classmethod
+    def _asyncpg_ajuri(cls, url: str) -> str:
+        """Render (ja moni muu palvelu) antaa yhteysosoitteen muodossa
+        `postgresql://...` tai `postgres://...`. Sovellus käyttää asyncpg-
+        ajuria, joten skeema muutetaan muotoon `postgresql+asyncpg://`.
+        Muut skeemat (esim. testien `sqlite+aiosqlite://`) pysyvät ennallaan."""
+        for etuliite in ("postgresql://", "postgres://"):
+            if url.startswith(etuliite):
+                return "postgresql+asyncpg://" + url[len(etuliite):]
+        return url
 
     @model_validator(mode="after")
     def _tarkista_jwt(self) -> "Settings":
