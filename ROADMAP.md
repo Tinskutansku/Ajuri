@@ -119,7 +119,7 @@ koneen kaikkiin verkkoliitäntöihin.
   välityspalvelimen takaa.
 - **Valmis kun:** testit 429-rajoille
 
-### L3 `[PR #31]` Syötteiden rajat
+### L3 `[x]` Syötteiden rajat
 - Tarkista, että kaikilla merkkijonokentillä on `max_length` ja numeroilla
   järkevät rajat (esim. henkilömäärä, aikaraja). Lisää puuttuvat.
 - Erityisesti `OptimointiPyynto.aikaraja_s`: yläraja, esim. 60 s. Nyt
@@ -127,7 +127,7 @@ koneen kaikkiin verkkoliitäntöihin.
 - Ei negatiivisia määriä, hintoja eikä bufferiaikoja
 - **Valmis kun:** testit liian pitkille ja negatiivisille arvoille (422)
 
-### L4 `[PR #32]` Riippuvuuksien haavoittuvuusskannaus CI:hin
+### L4 `[x]` Riippuvuuksien haavoittuvuusskannaus CI:hin
 - Uusi CI-job: `pip-audit -r requirements.txt` ja frontissa
   `npm audit --audit-level=high --omit=dev`
 - Job ei aluksi ole pakollinen tarkistus (Tanja lisää sen branch
@@ -144,7 +144,7 @@ koneen kaikkiin verkkoliitäntöihin.
 ympäristömuuttujat, käynnistyskomennot). Tanja luo itse tilin ja asettaa
 salaisuudet; Claude ei koske niihin.
 
-### M1 `[ ]` Render-julkaisu
+### M1 `[PR #33]` Render-julkaisu
 - `render.yaml`: backend (Docker), frontend (static site), Render Postgres
 - Backend ajaa `alembic upgrade head` ennen käynnistystä
 - `VITE_API_BASE` frontin buildiin, `CORS_ORIGINS` backendille

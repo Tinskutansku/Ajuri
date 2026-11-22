@@ -1,0 +1,78 @@
+# Render-blueprint AJURIn demojulkaisuun (ROADMAP M1).
+# Ohjeet: docs/julkaisu.md. Kaikki kolme osaa ovat Renderin ilmaisella tasolla.
+#
+# Salaisuudet (sync: false) Render kysyy blueprintin luonnin yhteydessä.
+# Niitä ei kirjoiteta tähän tiedostoon.
+
+databases:
+  - name: ajuri-kanta
+    plan: free
+    region: frankfurt
+    postgresMajorVersion: "16"
+    databaseName: ajuri
+    user: ajuri
+
+services:
+  # Backend: sama Dockerfile kuin paikallisesti
+  - type: web
+    name: ajuri-api
+    runtime: docker
+    plan: free
+    region: frankfurt
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    # Ilmaisella tasolla ei ole preDeployCommandia eikä shelliä, joten
+    # migraatiot ajetaan käynnistyskomennossa ennen uvicornia. Jos migraatio
+    # epäonnistuu, palvelin ei käynnisty ja Render pitää vanhan version.
+    # AJURI_SEED=true ajaa lisäksi demodatan seedin (idempotentti).
+    dockerCommand: >-
+      sh -c "alembic upgrade head
+      && if [ x$AJURI_SEED = xtrue ]; then python -m app.seed; fi
+      && exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"
+    envVars:
+      - key: AJURI_YMPARISTO
+        value: prod
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ajuri-kanta
+          property: connectionString
+      # Vähintään 32 merkkiä. Luo: python -c "import secrets; print(secrets.token_urlsafe(48))"
+      - key: JWT_SECRET
+        sync: false
+      # Frontin osoite JSON-listana, esim. ["https://ajuri.onrender.com"]
+      - key: CORS_ORIGINS
+        sync: false
+      # Renderin välityspalvelin lisää käyttäjän IP:n X-Forwarded-For-otsakkeen
+      # loppuun. Ks. README "Pyyntörajoitukset" ja docs/julkaisu.md.
+      - key: LUOTETUT_VALITYSPALVELIMET
+        value: "1"
+      # Nominatimin käyttöehdot: yksilöivä User-Agent yhteystiedolla.
+      - key: NOMINATIM_USER_AGENT
+        sync: false
+      - key: AJURI_SEED
+        value: "false"
+
+  # Frontend: Viten tuotantobuildi staattisena sivuna (CDN)
+  - type: web
+    name: ajuri
+    runtime: static
+    buildCommand: cd frontend && npm ci && npm run build
+    staticPublishPath: frontend/dist
+    envVars:
+      # Vite 8 vaatii Node 20.19+ / 22.12+
+      - key: NODE_VERSION
+        value: "22"
+      # Backendin osoite ilman loppukauttaviivaa, esim. https://ajuri-api.onrender.com
+      # Luetaan buildin aikana: muutos vaatii frontin uudelleenbuildin.
+      - key: VITE_API_BASE_URL
+        sync: false
+    headers:
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+      - path: /*
+        name: Referrer-Policy
+        value: no-referrer

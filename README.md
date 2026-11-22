@@ -333,6 +333,13 @@ käytetä, koska asiakas voi väärentää sen. Oletus 0 = otsaketta ei lueta.
 Yksityiskohtaiset käynnistys- ja vianetsintäohjeet:
 [docs/ajuri-kaynnistys.md](docs/ajuri-kaynnistys.md).
 
+### Julkaisu (Render)
+
+`render.yaml` julkaisee backendin, frontin ja tietokannan Renderin ilmaiselle
+tasolle. Askeleet, salaisuudet ja ilmaisen tason rajat:
+[docs/julkaisu.md](docs/julkaisu.md). `DATABASE_URL` kelpaa myös muodossa
+`postgresql://...`, sovellus vaihtaa sen asyncpg-muotoon.
+
 ## Testit
 
 ```
