@@ -251,6 +251,15 @@ joten niitä käytetään vain demo- ja kehityskannassa:
 | Koordinaattori | `koordi@ajuri.example` | `demo-koordi` |
 | Kuski (Kuski 1) | `kuski@ajuri.example` | `demo-kuski` |
 
+**Demotila.** Kun backendin ympäristömuuttuja `DEMO=true`, kirjautumissivulla
+on "Kokeile demoa" -napit (Tuotantona, Kuskina), jotka kirjautuvat yllä
+oleviksi demokäyttäjiksi ilman salasanaa (`GET /auth/demo`,
+`POST /auth/demo`). Napit näkyvät vain, jos seed on ajettu. Oletus on
+`DEMO=false`, jolloin nappeja ei ole ja `POST /auth/demo` vastaa 404.
+Renderin demojulkaisussa `DEMO=true` (ks. `docs/julkaisu.md`).
+
+![Kirjautumissivu demonapeilla](docs/kuvakaappaukset/kirjautuminen-demo-levea.png)
+
 Oikean käyttäjän luonti (salasana kysytään piilotettuna, vähintään 10 merkkiä):
 
 ```
