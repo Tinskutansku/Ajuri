@@ -1,8 +1,10 @@
 /* Kirjautumissivu (ROADMAP K3). POST /auth/kirjaudu → token sessionStorageen
    (istunto.js). Backend antaa kaikista epäonnistumisista saman 401-viestin,
-   ja se näytetään sellaisenaan. */
-import { useState } from "react";
-import { kirjaudu } from "./api.js";
+   ja se näytetään sellaisenaan.
+   Demotila (ROADMAP M2): jos backendissä on DEMO=true, lomakkeen alla on
+   "Kokeile demoa" -napit, jotka kirjautuvat demokäyttäjäksi ilman salasanaa. */
+import { useEffect, useState } from "react";
+import { haeDemoTila, kirjaudu, kirjauduDemoon } from "./api.js";
 import { tallennaIstunto } from "./istunto.js";
 import { C, Nappi, KenttaOtsikolla, Kentta, vihje } from "./ui.jsx";
 
@@ -18,11 +20,44 @@ const ilmoitusTyyli = (vari, tausta) => ({
   color: vari,
 });
 
+const DEMONAPPI = {
+  tuotanto: "Tuotantona",
+  kuski: "Kuskina",
+};
+
 export default function Kirjautuminen({ onKirjautunut, ilmoitus }) {
   const [email, setEmail] = useState("");
   const [salasana, setSalasana] = useState("");
   const [virhe, setVirhe] = useState(null);
   const [lahettaa, setLahettaa] = useState(false);
+  const [demoRoolit, setDemoRoolit] = useState([]);
+
+  useEffect(() => {
+    let voimassa = true;
+    haeDemoTila()
+      .then((tila) => {
+        if (voimassa && tila.kaytossa) setDemoRoolit(tila.roolit);
+      })
+      .catch(() => {
+        // Ei demotilaa tai backend ei vastaa: napit jäävät pois.
+      });
+    return () => {
+      voimassa = false;
+    };
+  }, []);
+
+  const kirjauduDemona = async (rooli) => {
+    setLahettaa(true);
+    setVirhe(null);
+    try {
+      const istunto = tallennaIstunto(await kirjauduDemoon(rooli));
+      onKirjautunut(istunto.kayttaja);
+    } catch (err) {
+      setVirhe(err.message);
+    } finally {
+      setLahettaa(false);
+    }
+  };
 
   const laheta = async (e) => {
     e.preventDefault();
@@ -91,6 +126,24 @@ export default function Kirjautuminen({ onKirjautunut, ilmoitus }) {
         <p style={vihje}>
           Istunto päättyy, kun suljet välilehden, tai viimeistään 12 tunnin kuluttua. Tunnukset antaa tuotanto.
         </p>
+
+        {demoRoolit.length > 0 && (
+          <div style={{ borderTop: `2px dashed ${C.line}`, marginTop: 18, paddingTop: 16 }}>
+            <h3 style={{ fontFamily: "'Fraunces',serif", fontWeight: 700, fontSize: 18, margin: "0 0 6px", color: C.inkSolid }}>
+              Kokeile demoa
+            </h3>
+            <p style={{ ...vihje, marginTop: 0 }}>
+              Kirjaudu ilman tunnuksia valmiiseen demotuotantoon. Demodata palautuu alkutilaan aika ajoin.
+            </p>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 10 }}>
+              {demoRoolit.map((rooli) => (
+                <Nappi key={rooli} variant="ghost" disabled={lahettaa} onClick={() => kirjauduDemona(rooli)}>
+                  {DEMONAPPI[rooli] ?? rooli}
+                </Nappi>
+              ))}
+            </div>
+          </div>
+        )}
       </section>
     </div>
   );

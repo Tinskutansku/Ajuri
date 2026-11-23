@@ -38,7 +38,14 @@ from app.rooli import EI_KIRJAUTUNUT, EI_OIKEUTTA_MUOKATA
 
 # Reitit, jotka toimivat ilman tokenia. /auth/mina tarkistaa tokenin itse
 # (testattu test_kirjautuminen.py:ssä), mutta kuuluu silti 401-testiin.
-AVOIMET = {("GET", "/"), ("GET", "/health"), ("POST", "/auth/kirjaudu")}
+# /auth/demo: kirjautumissivun demonapit (M2, testattu test_demotila.py:ssä).
+AVOIMET = {
+    ("GET", "/"),
+    ("GET", "/health"),
+    ("POST", "/auth/kirjaudu"),
+    ("GET", "/auth/demo"),
+    ("POST", "/auth/demo"),
+}
 
 
 def _kaikki_reitit() -> list[tuple[str, str]]:
@@ -81,13 +88,18 @@ async def test_reitti_ilman_tokenia_401(anon_client, metodi, polku):
 
 @pytest.mark.parametrize(("metodi", "polku"), sorted(AVOIMET))
 async def test_avoimet_reitit_eivat_vaadi_tokenia(anon_client, metodi, polku):
-    vastaus = await anon_client.request(
-        metodi, polku, json={"email": "ei@ole.test", "salasana": "x"} if metodi == "POST" else None
-    )
+    runko = {
+        "/auth/kirjaudu": {"email": "ei@ole.test", "salasana": "x"},
+        "/auth/demo": {"rooli": "tuotanto"},
+    }.get(polku) if metodi == "POST" else None
+    vastaus = await anon_client.request(metodi, polku, json=runko)
     if polku == "/auth/kirjaudu":
         # 401 tulee väärästä tunnuksesta, ei puuttuvasta tokenista
         assert vastaus.status_code == 401
         assert vastaus.json()["detail"] != EI_KIRJAUTUNUT
+    elif (metodi, polku) == ("POST", "/auth/demo"):
+        # Demotila on oletuksena pois: 404, ei 401
+        assert vastaus.status_code == 404
     else:
         assert vastaus.status_code == 200
 

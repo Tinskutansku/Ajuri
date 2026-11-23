@@ -66,8 +66,11 @@ ajetaan backendin käynnistyksen yhteydessä:
 1. `ajuri-api` → *Environment* → `AJURI_SEED` = `true` → **Save**.
    Palvelu käynnistyy uudelleen ja ajaa `python -m app.seed` migraatioiden
    jälkeen.
-2. Kirjaudu frontissa demokäyttäjällä (tunnukset README:n kohdassa
-   "Käyttäjät ja kirjautuminen").
+2. Avaa frontti. Kirjautumissivulla näkyy "Kokeile demoa" -napit
+   (Tuotantona, Kuskina), koska `render.yaml` asettaa `DEMO=true`. Napit
+   ilmestyvät vasta, kun seed on ajettu ja backend on hereillä. Tavallinen
+   kirjautuminen demotunnuksilla toimii myös (README, "Käyttäjät ja
+   kirjautuminen").
 
 Seed on idempotentti. Kun `AJURI_SEED=true` on päällä, **jokainen
 käynnistys palauttaa demopäivän seedin tilaan** ja demokäyttäjien salasanat
@@ -75,6 +78,19 @@ oletuksiin. Ilmaisella tasolla palvelu käynnistyy aina uniltaan, eli
 demodata nollautuu käytännössä joka kerta, kun sovellus on ollut 15 min
 käyttämättä. Demoon se sopii. Jos haluat muutosten säilyvän, aseta
 `AJURI_SEED=false` seedin jälkeen.
+
+#### Demodatan palautus: mikä onnistuu ilmaiseksi
+
+| Vaihtoehto | Ilmainen? | Huomiot |
+|---|---|---|
+| **Seed käynnistyksessä** (`AJURI_SEED=true`) | Kyllä | Valittu tapa. Ilmainen backend nukahtaa 15 min käyttämättömänä, ja jokainen herääminen ajaa seedin, eli demo palautuu käytännössä jokaisen käyttötauon jälkeen. Ei vaadi uutta koodia. |
+| Renderin Cron Job (yöllinen `python -m app.seed`) | Ei | Cron Jobit eivät kuulu ilmaiseen tasoon, vaan ne laskutetaan ajoajan mukaan (ks. <https://render.com/docs/cronjobs> ja taulukko alla). |
+| GitHub Actionsin ajastettu ajo | Kyllä, mutta | Vaatisi kannan ulkoisen osoitteen ja salasanan GitHubin salaisuudeksi sekä CI-muutoksen. Ei tehty, koska ilmainen vaihtoehto yllä riittää eikä CI-/salaisuusmuutoksia ole hyväksytty. |
+
+Demotilan napit kirjautuvat samoiksi demokäyttäjiksi kuin julkiset
+tunnukset, joten ne eivät avaa demoon mitään uutta. Ilman `DEMO=true`
+nappeja ei näy, ja `POST /auth/demo` vastaa 404. Demokirjautumisella on
+sama IP-kohtainen pyyntöraja kuin tavallisella kirjautumisella.
 
 **Huom:** demokäyttäjien salasanat ovat julkisia (README). Kuka tahansa,
 joka tietää osoitteen, voi kirjautua demoon. Älä tallenna demoon oikeita

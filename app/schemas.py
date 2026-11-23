@@ -6,7 +6,7 @@ from __future__ import annotations
 from datetime import date, datetime, time
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.models import HenkiloTyyppi, KayttajaRooli, SopimusTyyppi, TehtavaTyyppi
 
@@ -516,6 +516,26 @@ class KayttajaRead(BaseModel):
     kuski_id: int | None = None
     aktiivinen: bool
     viimeksi_kirjautunut: datetime | None = None
+
+
+class DemoKirjautumisPyynto(BaseModel):
+    """POST /auth/demo (ROADMAP M2). Koordinaattorille ei ole demonappia."""
+
+    rooli: KayttajaRooli
+
+    @field_validator("rooli")
+    @classmethod
+    def _ei_koordia(cls, rooli: KayttajaRooli) -> KayttajaRooli:
+        if rooli not in (KayttajaRooli.TUOTANTO, KayttajaRooli.KUSKI):
+            raise ValueError("Demoon pääsee roolilla tuotanto tai kuski.")
+        return rooli
+
+
+class DemoTila(BaseModel):
+    """GET /auth/demo: näytetäänkö kirjautumissivulla demonapit."""
+
+    kaytossa: bool
+    roolit: list[KayttajaRooli]
 
 
 class TokenVastaus(BaseModel):

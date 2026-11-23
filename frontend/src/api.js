@@ -62,6 +62,15 @@ async function pyyda(polku, options = {}) {
 export function kirjaudu(email, salasana) {
   return pyyda("/auth/kirjaudu", { method: "POST", body: JSON.stringify({ email, salasana }) });
 }
+// Demotila (ROADMAP M2). Vastaus: { kaytossa, roolit: ["tuotanto", "kuski"] }.
+// Lyhyt aikaraja: jos backend vasta herää, demonapit vain jäävät näyttämättä.
+export function haeDemoTila() {
+  return pyyda("/auth/demo", { aikarajaMs: 8000 });
+}
+// Kirjautuu seedin demokäyttäjäksi ilman salasanaa. Vastaus kuin kirjaudu():lla.
+export function kirjauduDemoon(rooli) {
+  return pyyda("/auth/demo", { method: "POST", body: JSON.stringify({ rooli }) });
+}
 export function haeMina() {
   return pyyda("/auth/mina");
 }

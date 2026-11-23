@@ -51,6 +51,10 @@ services:
         sync: false
       - key: AJURI_SEED
         value: "false"
+      # Demotila (ROADMAP M2): "Kokeile demoa" -napit kirjautumissivulla.
+      # Napit näkyvät vasta, kun seed on ajettu (AJURI_SEED=true).
+      - key: DEMO
+        value: "true"
 
   # Frontend: Viten tuotantobuildi staattisena sivuna (CDN)
   - type: web

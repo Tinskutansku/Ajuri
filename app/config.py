@@ -45,6 +45,12 @@ class Settings(BaseSettings):
     jwt_secret: str | None = None
     jwt_voimassa_h: int = 12
 
+    # Demotila (ROADMAP M2). DEMO=true näyttää kirjautumissivulla "Kokeile
+    # demoa" -napit, joilla kirjaudutaan seedin demokäyttäjiksi ilman
+    # salasanaa. Vain demojulkaisuun: demokäyttäjien salasanat ovat julkisia
+    # joka tapauksessa (README), joten tämä ei avaa mitään uutta.
+    demo: bool = False
+
     # Pyyntörajoitukset (app/rajoitukset.py, ROADMAP L2). Muoto on
     # limits-kirjaston: "5/minute", "100/hour", "10/30 seconds".
     rajoitukset_kaytossa: bool = True
