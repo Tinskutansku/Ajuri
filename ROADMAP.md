@@ -164,7 +164,7 @@ salaisuudet; Claude ei koske niihin.
 - **Valmis kun:** testi demokirjautumiselle, ja ilman `DEMO=true` napit
   eivät näy
 
-### M3 `[ ]` README ja arkkitehtuurikuvaus
+### M3 `[PR #35]` README ja arkkitehtuurikuvaus
 - README: mikä AJURI on, kuvakaappaukset, demo-linkki, teknologiat,
   käynnistys
 - `docs/arkkitehtuuri.md`: kerrokset, optimointiputki (Mermaid-kaavio),
