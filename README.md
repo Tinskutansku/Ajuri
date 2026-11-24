@@ -8,7 +8,21 @@ uudestaan useita kertoja päivässä kun joku sairastuu, lento myöhästyy tai
 kuvausjärjestys muuttuu. Ajuri tekee saman laskennan sekunneissa ja
 tallentaa jokaisen version, jotta muutoksen voi jäljittää.
 
-![demo](docs/demo.png)
+**Kokeile:** [ajuri.onrender.com](https://ajuri.onrender.com) — valitse
+kirjautumissivulta "Kokeile demoa". Demo pyörii Renderin ilmaisella
+tasolla, joten ensimmäinen avaus voi kestää noin minuutin, kun palvelin
+herää.
+
+**Lue lisää:** [arkkitehtuuri](docs/arkkitehtuuri.md) ·
+[optimoijan speksi](docs/optimoija-spec.md) ·
+[tuotekartta](docs/tuotekartta.md) · [julkaisu](docs/julkaisu.md) ·
+[käynnistysohje](docs/ajuri-kaynnistys.md)
+
+![Optimoitu ajolista: kuskit aikajanoineen ja päivän lisäkustannus](docs/demo.png)
+
+| Kirjautuminen demonapeilla | Puhelimella | Rekisteri |
+|---|---|---|
+| ![Kirjautumissivu leveänä](docs/kuvakaappaukset/kirjautuminen-demo-levea.png) | ![Kirjautumissivu puhelimella](docs/kuvakaappaukset/kirjautuminen-demo-mobiili.png) | ![Rekisterin lomake](docs/kuvakaappaukset/rekisteri-kenttaotsikot-levea.png) |
 
 ## Miksi tämä on vaikea ongelma
 
@@ -75,11 +89,20 @@ halvempaa kuin lisäkuskin palkkaaminen.
 
 ## Tekninen toteutus
 
-**Stack:** Python 3.13, FastAPI, SQLAlchemy 2.0 (async), PostgreSQL 16,
-Alembic, Google OR-Tools, OSRM, Nominatim, Photon, React 19 + Vite,
-Docker Compose, GitHub Actions.
+| Osa | Teknologiat |
+|---|---|
+| Backend | Python 3.12+, FastAPI, SQLAlchemy 2.0 (async), Pydantic v2 |
+| Tietokanta | PostgreSQL 16, Alembic-migraatiot |
+| Optimointi | Google OR-Tools (reitityssolveri), `ProcessPoolExecutor` |
+| Kartat | OSRM (ajoajat), Nominatim (geokoodaus), Photon (osoite-ehdotukset) |
+| Kirjautuminen | JWT (PyJWT), argon2-salasanat, slowapi-pyyntörajoitukset |
+| Frontend | React 19 + Vite, ei UI-kirjastoa |
+| Ajo ja julkaisu | Docker Compose, GitHub Actions, Render |
 
-**Arkkitehtuuri:**
+Kerrokset, optimointiputki kaavioineen ja keskeisten ratkaisujen syyt
+ovat dokumentissa **[docs/arkkitehtuuri.md](docs/arkkitehtuuri.md)**.
+
+**Hakemistot:**
 
 ```
 app/
@@ -111,7 +134,9 @@ docs/                    Spesifikaatiot, tuotekartta, käynnistysohjeet
 ajolista_optimoija.py    Alkuperäinen OR-Tools-prototyyppi (itsenäinen)
 ```
 
-**Optimointimalli:** kuljetustehtävät mallinnetaan
+### Optimointimalli
+
+Kuljetustehtävät mallinnetaan
 pickup-and-delivery-ongelmana aikaikkunoilla (VRPTW) OR-Toolsin
 reitityssolverilla. Jokainen tehtävä on nouto- ja jättösolmupari, jotka
 on sidottu samaan ajoneuvoon ja oikeaan järjestykseen; kuskit ovat
@@ -124,56 +149,25 @@ Kustannusmalli ohjaa hakua sopimustyyppikohtaisilla kiinteillä ja
 ylityöporrastetuilla kustannuksilla; tarkka euromäärä lasketaan
 ratkaisun jälkeen erikseen.
 
-**Palveluaikabufferit.** Kuskilla ja henkilöllä voi olla oma
-puskuriaika (`kuski.pickup_bufferi_min`, `henkilo.nouto_bufferi_min`) —
-toisilla noudot vievät järjestelmällisesti kauemmin, ja joku on
-tyypillisesti myöhässä. Bufferit lisätään noutosolmun kestoon
-ajoneuvokohtaisilla transit-callbackeilla, mutta **vain aikadimensioon,
-ei kaarikustannukseen**: muuten optimoija alkaisi systemaattisesti
-välttää kuskia, josta on kirjattu realistista dataa.
+### Keskeiset ratkaisut lyhyesti
 
-**Ulkoiset palvelut abstraktion takana.** Reititys (OSRM) ja geokoodaus
-(Nominatim) ovat kumpikin oman rajapintansa takana ja kumpikin
-välimuistitettu tietokantaan pistepareittain ja osoitteittain — samat
-hotellit, lokaatiot ja osoitteet toistuvat päivästä toiseen, joten
-ulkoista palvelua kutsutaan harvoin. Nominatim-toteutus noudattaa
-palvelun käyttöehtoja (yksilöivä User-Agent, enintään 1 kutsu/s).
-Käyttöehdot kieltävät myös automaattitäydennyksen, joten osoitekentän
-ehdotukset kirjoittaessa tulevat Photonista (sama OpenStreetMap-data,
-tehty tähän käyttöön) omassa `OsoiteEhdottaja`-abstraktiossaan.
-Valitun ehdotuksen koordinaatit tallentuvat suoraan, joten geokoodausta
-ei tarvita lainkaan. Tulokset painotetaan pääkaupunkiseudulle mutta
-niitä ei rajata, koska yhteistuotannoissa tarvitaan myös ulkomaisia
-osoitteita.
-Testeissä käytetään deterministisiä toteutuksia, joten yksikään testi ei
-kosketa verkkoa. Julkinen OSRM-demopalvelin ei sovi tuotantoon (ei
-SLA:ta, rate limit) — vaihto omaan instanssiin tai kaupalliseen
-palveluun on yksi uusi luokka ja asetusmuutos.
+Perustelut ja yksityiskohdat: [docs/arkkitehtuuri.md](docs/arkkitehtuuri.md#keskeiset-ratkaisut-ja-niiden-syyt).
 
-**Optimointi omassa prosessissaan.** OR-Toolsin C++-ratkaisija pitää
-Pythonin GIL-lukkoa koko ratkaisun ajan, joten samassa prosessissa
-ajettuna se pysäytti koko API:n optimoinnin ajaksi (noin minuutti
-skenaariovertailun kanssa) — muut välilehdet eivät saaneet vastausta.
-Siirto säikeeseen ei auttanut juuri GIL:n takia. Pääratkaisu,
-sijoittamattomien syyanalyysi ja skenaariovertailu ajetaan siksi
-`ProcessPoolExecutor`issa (`app/services/laskenta.py`), pääratkaisu ja
-vertailu rinnakkain. Syyanalyysi ratkaisee jokaiselle sijoittamattomalle
-tehtävälle yhden tehtävän ongelman per kuski ("ehtisikö tämä kuski
-edes yksinään?"), ja sille riittää 1 sekunnin aikaraja täyden aikarajan
-sijaan. Saman päivän päällekkäinen optimointi palauttaa 409:n, jotta
-kaksi ajolistaversiota ei synny kilpasilla. Vika löytyi toistamalla
-Windowsin `spawn`-käynnistys ja katsomalla jumittunutta prosessia
-py-spyllä. Regressiotestit pitävät GIL:ää kuten OR-Tools, ja ne kaatuvat
-säieversiolla.
-
-**Versiointi ja soft delete.** Jokainen optimointiajo tallentuu omana
-`ajolista_versio`-rivinään, eikä mitään kirjoiteta vanhan päälle.
-Julkaistut versiot saavat alan call sheet -käytännön mukaisen
-värikoodin (WHITE → BLUE → PINK → YELLOW, sen jälkeen numeroituna) —
-blue call sheet, blue ajolista. Tehtäviä, henkilöitä, kuskeja ja
-lokaatioita ei koskaan poisteta kovaa kautta, koska niihin viittaa
-aiempien versioiden keikkoja: `DELETE` merkitsee rivin passiiviseksi,
-jolloin se katoaa listauksista mutta vanha ajolista pysyy ehjänä.
+- **Bufferit vain aikadimensiossa.** Kuskin ja henkilön noutopuskuri
+  lisätään aikaan mutta ei kustannukseen, jottei optimoija välttele
+  ihmisiä, joista on kirjattu realistista dataa.
+- **Ulkoiset palvelut abstraktion takana ja välimuistissa.** Testit eivät
+  koske verkkoon, ja reitityspalvelun vaihto on yksi uusi luokka.
+- **Photon ehdotuksiin, Nominatim geokoodaukseen.** Nominatimin
+  käyttöehdot kieltävät automaattitäydennyksen.
+- **Optimointi omassa prosessissaan.** OR-Tools pitää GIL-lukkoa koko
+  ratkaisun ajan, joten säikeessä ajettuna koko API pysähtyi.
+  Regressiotesti kaatuu, jos laskenta siirretään takaisin säikeeseen.
+- **Versiointi.** Jokainen optimointi on uusi versio, julkaistut saavat
+  call sheet -värin (WHITE → BLUE → PINK → YELLOW), ja kahta versiota
+  voi verrata ("Näyttelijä 2: nouto 7.40 → 8.10").
+- **Soft delete.** Mitään ei poisteta kovaa kautta, koska vanhat
+  ajolistat viittaavat riveihin.
 
 ## Käynnistys
 
@@ -355,7 +349,7 @@ tasolle. Askeleet, salaisuudet ja ilmaisen tason rajat:
 pytest
 ```
 
-148 testiä, ajavat SQLite-muistikannalla (ei vaadi Postgresia).
+Yli 400 testiä, ajavat SQLite-muistikannalla (ei vaadi Postgresia).
 Ulkoiset palvelut korvataan deterministisillä toteutuksilla, joten
 testit eivät kosketa verkkoa.
 
@@ -421,13 +415,13 @@ roolipohjainen kenttäsuodatus ja geokoodaus välimuisteineen.
 
 **Seuraavaksi** ([ROADMAP.md](ROADMAP.md)):
 
-1. **Kirjautuminen** — valmis: salasanat, JWT, roolit ja tuotantokohtainen
-   näkyvyys tokenista sekä kirjautumissivu frontendissä
-2. **Kovennukset** — tuotantoasetukset ilman oletussalaisuuksia,
-   pyyntörajoitukset ja syötteiden rajat
-3. **Julkaisu demoksi** — Render, demotila ja arkkitehtuurikuvaus
-4. **Kuskin mobiilinäkymä** — kuski näkee puhelimesta vain oman päivänsä
-5. **Excel-tuonti** rekisteriin esikatselulla
+1. **Kuskin mobiilinäkymä** — kuski näkee puhelimesta vain oman päivänsä
+   ja kuittaa keikat
+2. **Excel-tuonti** rekisteriin esikatselulla
+
+Valmiina ovat myös kirjautuminen (salasanat, JWT, tuotantokohtainen
+näkyvyys), kovennukset (prod-asetukset, pyyntörajoitukset, syötteiden
+rajat, haavoittuvuusskannaus CI:ssä) ja demojulkaisu Renderiin.
 
 Pidemmän aikavälin suunta ja perustelut ovat tiedostossa
 [docs/tuotekartta.md](docs/tuotekartta.md). Optimoijan rajapinta,

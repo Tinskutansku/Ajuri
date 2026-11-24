@@ -156,7 +156,7 @@ salaisuudet; Claude ei koske niihin.
 - **Valmis kun:** CI buildaa tuotantoversion, ja ohjeen mukaan julkaisu
   onnistuu (Tanja testaa)
 
-### M2 `[PR #34]` Demotila
+### M2 `[x]` Demotila
 - Kirjautumissivulla prodissa "Kokeile demoa" -napit (tuotanto / kuski),
   vain jos `DEMO=true`
 - Demodata palautetaan seedillä (komento tai yöllinen ajo, ks. Renderin
