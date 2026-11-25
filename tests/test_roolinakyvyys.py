@@ -12,6 +12,7 @@ from app.models import (
     AjolistaVersio,
     Henkilo,
     HenkiloTyyppi,
+    KayttajaRooli,
     Keikka,
     Kuski,
     Kuvauspaiva,
@@ -231,7 +232,8 @@ async def test_hae_versiot_kuski_ei_nae_kokonaiskustannusta(client, db_session, 
     vastaus = await client.get("/versiot", params={"paiva_id": paiva_id}, headers=kuski_otsakkeet)
     assert vastaus.status_code == 200
     rivit = vastaus.json()
-    assert len(rivit) == 2
+    # N1: kuski näkee vain julkaistun version (v1), ei luonnosta v2.
+    assert [r["id"] for r in rivit] == [v1_id]
     for rivi in rivit:
         assert "kokonaiskustannus_eur" not in rivi
 
@@ -262,7 +264,7 @@ async def test_hae_versiot_404(client):
     assert vastaus.status_code == 404
 
 
-async def test_hae_keikat_toimii_kuskilla(client, db_session, kuski_otsakkeet):
+async def test_hae_keikat_toimii_kuskilla(client, db_session, kirjaudu):
     tuotanto = await hae_testituotanto(db_session)
     paiva = Kuvauspaiva(tuotanto_id=tuotanto.id, pvm=date(2026, 7, 10), call_time=time(8, 0))
     db_session.add(paiva)
@@ -280,7 +282,8 @@ async def test_hae_keikat_toimii_kuskilla(client, db_session, kuski_otsakkeet):
     )
     db_session.add(tehtava)
     await db_session.flush()
-    versio = AjolistaVersio(paiva_id=paiva.id, versio_nro=1)
+    # N1: kuski näkee omat keikkansa julkaistusta versiosta.
+    versio = AjolistaVersio(paiva_id=paiva.id, versio_nro=1, julkaistu=True)
     db_session.add(versio)
     await db_session.flush()
     keikka = Keikka(
@@ -289,6 +292,7 @@ async def test_hae_keikat_toimii_kuskilla(client, db_session, kuski_otsakkeet):
     )
     db_session.add(keikka)
     await db_session.commit()
+    kuski_otsakkeet = await kirjaudu(KayttajaRooli.KUSKI, kuski_id=kuski.id)
 
     vastaus = await client.get("/keikat", params={"versio_id": versio.id}, headers=kuski_otsakkeet)
     assert vastaus.status_code == 200

@@ -164,7 +164,7 @@ salaisuudet; Claude ei koske niihin.
 - **Valmis kun:** testi demokirjautumiselle, ja ilman `DEMO=true` napit
   eivät näy
 
-### M3 `[PR #35]` README ja arkkitehtuurikuvaus
+### M3 `[x]` README ja arkkitehtuurikuvaus
 - README: mikä AJURI on, kuvakaappaukset, demo-linkki, teknologiat,
   käynnistys
 - `docs/arkkitehtuuri.md`: kerrokset, optimointiputki (Mermaid-kaavio),
@@ -177,7 +177,7 @@ salaisuudet; Claude ei koske niihin.
 **Esihyväksytty (Tanja 13.11.):** roolinäkyvyyden muutos niin, että KUSKI
 näkee vain omat keikkansa.
 
-### N1 `[ ]` Backend: kuski näkee vain omat keikkansa
+### N1 `[PR #36]` Backend: kuski näkee vain omat keikkansa
 - KUSKI-roolin token → `kuski_id` → vain hänen keikkansa julkaistusta
   versiosta. Muiden kuskien keikat ja kustannukset eivät näy.
 - **Valmis kun:** testit, ettei KUSKI saa toisen kuskin keikkoja millään
