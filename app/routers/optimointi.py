@@ -26,7 +26,7 @@ from app.models import (
     Tehtava,
     Tuotanto,
 )
-from app.omistus import hae_paiva
+from app.omistus import hae_paiva, rajaa_kuskin_versiot
 from app.rajoitukset import kayttajan_avain, limiter, raja_optimointi
 from app.response_filter import OPTIMOINTIVASTAUS_KUSKILTA_PIILOTETTAVAT, json_vastaus
 from app.rooli import kirjautunut_kayttaja, nykyinen_rooli
@@ -89,14 +89,16 @@ async def optimoinnin_tila(
     laskennan ei hukkaa tulosta, vaan frontend kyselee tätä, kunnes
     laskenta on valmis, ja hakee sitten viimeisimmän version."""
     await hae_paiva(db, paiva_id, kayttaja)
-    viimeisin_versio_id = (
-        await db.execute(
-            select(AjolistaVersio.id)
-            .where(AjolistaVersio.paiva_id == paiva_id)
-            .order_by(AjolistaVersio.versio_nro.desc())
-            .limit(1)
-        )
-    ).scalar_one_or_none()
+    # KUSKIlle viimeisin julkaistu versio (N1): luonnoksen id:llä kuski
+    # saisi kuitenkin vain 404:n.
+    stmt = rajaa_kuskin_versiot(
+        select(AjolistaVersio.id)
+        .where(AjolistaVersio.paiva_id == paiva_id)
+        .order_by(AjolistaVersio.versio_nro.desc())
+        .limit(1),
+        kayttaja,
+    )
+    viimeisin_versio_id = (await db.execute(stmt)).scalar_one_or_none()
     return OptimoinninTila(
         paiva_id=paiva_id,
         kaynnissa=paivan_lukko(paiva_id).locked(),

@@ -11,15 +11,21 @@ Resurssit kuuluvat tuotantoon kolmella tavalla:
 - kuvauspäivän kautta `paiva_id`-kentällä (päivän henkilöt/kuskit/
   lokaatiot, tehtävät, ajolistaversiot)
 - versio -> kuvauspäivä -ketjun kautta (keikat)
+
+KUSKI-rooli (ROADMAP N1) näkee lisäksi vain julkaistut ajolistaversiot
+ja niistä vain omat keikkansa (`kayttaja.kuski_id`). Julkaisematon
+versio näyttää kuskille samalta kuin olematon: 404. Säännöt ovat tässä
+tiedostossa, jotta jokainen versioihin ja keikkoihin koskeva reitti
+käyttää samoja.
 """
 
 from typing import Any
 
 from fastapi import HTTPException
-from sqlalchemy import Select
+from sqlalchemy import Select, false
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import AjolistaVersio, Kayttaja, Keikka, Kuvauspaiva, Tuotanto
+from app.models import AjolistaVersio, Kayttaja, KayttajaRooli, Keikka, Kuvauspaiva, PaivaKuski, Tuotanto
 
 TUOTANTOA_EI_LOYTYNYT = "Tuotantoa ei löytynyt"
 PAIVAA_EI_LOYTYNYT = "Kuvauspäivää ei löytynyt"
@@ -68,10 +74,18 @@ async def hae_paivan_rivi(db: AsyncSession, malli: type, rivi_id: int, kayttaja:
     return rivi
 
 
+def on_kuski(kayttaja: Kayttaja) -> bool:
+    return kayttaja.rooli == KayttajaRooli.KUSKI
+
+
 async def hae_versio(
     db: AsyncSession, versio_id: int, kayttaja: Kayttaja, viesti: str = VERSIOTA_EI_LOYTYNYT
 ) -> AjolistaVersio:
-    return await hae_paivan_rivi(db, AjolistaVersio, versio_id, kayttaja, viesti)
+    versio = await hae_paivan_rivi(db, AjolistaVersio, versio_id, kayttaja, viesti)
+    # N1: kuski ei näe luonnoksia eikä vanhoja versioita, vain julkaistun.
+    if on_kuski(kayttaja) and not versio.julkaistu:
+        raise _404(viesti)
+    return versio
 
 
 async def hae_keikka(db: AsyncSession, keikka_id: int, kayttaja: Kayttaja, viesti: str) -> Keikka:
@@ -110,4 +124,27 @@ def rajaa_paivan_kautta(stmt: Select, malli: type, kayttaja: Kayttaja) -> Select
     """Listaus mallista, joka kuuluu tuotantoon kuvauspäivän kautta."""
     return stmt.join(Kuvauspaiva, Kuvauspaiva.id == malli.paiva_id).where(
         Kuvauspaiva.tuotanto_id == kayttaja.tuotanto_id
+    )
+
+
+def rajaa_kuskin_versiot(stmt: Select, kayttaja: Kayttaja) -> Select:
+    """N1: KUSKI-roolille vain julkaistut versiot. Muille ennallaan.
+    `stmt` valitsee AjolistaVersio-rivejä tai on jo liitetty siihen."""
+    if not on_kuski(kayttaja):
+        return stmt
+    return stmt.where(AjolistaVersio.julkaistu.is_(True))
+
+
+def rajaa_kuskin_keikat(stmt: Select, kayttaja: Kayttaja) -> Select:
+    """N1: KUSKI-roolille vain omat keikat julkaistuista versioista.
+    `stmt` valitsee Keikka-rivejä ja on jo liitetty AjolistaVersioon.
+    Kuski-käyttäjä, jota ei ole linkitetty kuskiin (kuski_id puuttuu),
+    ei näe yhtään keikkaa."""
+    if not on_kuski(kayttaja):
+        return stmt
+    stmt = rajaa_kuskin_versiot(stmt, kayttaja)
+    if kayttaja.kuski_id is None:
+        return stmt.where(false())
+    return stmt.join(PaivaKuski, PaivaKuski.id == Keikka.paiva_kuski_id).where(
+        PaivaKuski.kuski_id == kayttaja.kuski_id
     )

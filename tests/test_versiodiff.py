@@ -6,6 +6,7 @@ from datetime import date, time
 
 from app.models import (
     AjolistaVersio,
+    KayttajaRooli,
     Keikka,
     Kuski,
     Kuvauspaiva,
@@ -142,8 +143,15 @@ async def test_diff_kustannukset_tuotannolle(client, db_session):
     assert data["kustannusmuutos_eur"] == 120.5
 
 
-async def test_diff_kuski_ei_nae_kustannusmuutoksia(client, db_session, kuski_otsakkeet):
+async def test_diff_kuski_ei_nae_kustannusmuutoksia(client, db_session, kirjaudu):
     ids = await _seed(db_session)
+    # N1: kuski näkee vain julkaistut versiot. API:n kautta julkaistuna on
+    # kerrallaan yksi versio päivässä, joten molemmat merkitään suoraan
+    # kantaan, jotta kenttäsuodatus voidaan testata.
+    for vid in (ids["v1"], ids["v2"]):
+        (await db_session.get(AjolistaVersio, vid)).julkaistu = True
+    await db_session.commit()
+    kuski_otsakkeet = await kirjaudu(KayttajaRooli.KUSKI, kuski_id=ids["tiina"])
     vastaus = await client.get(
         f"/versiot/{ids['v1']}/diff/{ids['v2']}", headers=kuski_otsakkeet
     )

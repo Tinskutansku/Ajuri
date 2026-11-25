@@ -5,7 +5,7 @@ from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.models import AjolistaVersio, Kayttaja, KayttajaRooli, Keikka, PaivaKuski
-from app.omistus import hae_paiva, rajaa_paivan_kautta
+from app.omistus import hae_paiva, on_kuski, rajaa_kuskin_versiot, rajaa_paivan_kautta
 from app.omistus import hae_versio as hae_oma_versio
 from app.response_filter import (
     AJOLISTAVERSIO_KUSKILTA_PIILOTETTAVAT,
@@ -80,6 +80,7 @@ async def listaa_versiot(
         stmt = stmt.where(AjolistaVersio.paiva_id == paiva_id)
     if julkaistu is not None:
         stmt = stmt.where(AjolistaVersio.julkaistu.is_(julkaistu))
+    stmt = rajaa_kuskin_versiot(stmt, kayttaja)
     tulos = (await db.execute(stmt)).scalars().all()
     return json_vastaus(
         [AjolistaVersioRead.model_validate(v) for v in tulos], rooli, AJOLISTAVERSIO_KUSKILTA_PIILOTETTAVAT
@@ -132,12 +133,22 @@ def _diff_keikka(a: Keikka | None, b: Keikka | None) -> DiffKeikka:
     )
 
 
-def laske_diff(a: AjolistaVersio, b: AjolistaVersio) -> VersioDiff:
+def laske_diff(a: AjolistaVersio, b: AjolistaVersio, vain_kuski_id: int | None = None) -> VersioDiff:
     """Vertaa versiota a (vanha) versioon b (uusi). Keikat täsmätään
     tehtava_id:n perusteella. Kuski verrataan kuski_id:llä, ei
-    paiva_kuski_id:llä, jotta sama ihminen tunnistetaan."""
-    keikat_a = {k.tehtava_id: k for k in a.keikat}
-    keikat_b = {k.tehtava_id: k for k in b.keikat}
+    paiva_kuski_id:llä, jotta sama ihminen tunnistetaan.
+
+    `vain_kuski_id` (N1, KUSKI-rooli): vertailuun otetaan vain tämän
+    kuskin keikat, joten muiden kuskien keikat eivät näy missään
+    vastauksen kentässä. Omalta kuskilta toiselle siirtynyt keikka näkyy
+    poistuneena (ja toiselta omalle tullut uutena) ilman toisen kuskin
+    nimeä."""
+    keikat_a_lista, keikat_b_lista = list(a.keikat), list(b.keikat)
+    if vain_kuski_id is not None:
+        keikat_a_lista = [k for k in keikat_a_lista if k.paiva_kuski.kuski_id == vain_kuski_id]
+        keikat_b_lista = [k for k in keikat_b_lista if k.paiva_kuski.kuski_id == vain_kuski_id]
+    keikat_a = {k.tehtava_id: k for k in keikat_a_lista}
+    keikat_b = {k.tehtava_id: k for k in keikat_b_lista}
 
     def jarjestysavain(d: DiffKeikka):
         klo = d.nouto_klo_b or d.nouto_klo_a
@@ -159,7 +170,7 @@ def laske_diff(a: AjolistaVersio, b: AjolistaVersio) -> VersioDiff:
     poistuneet = [_diff_keikka(keikat_a[t], None) for t in keikat_a.keys() - keikat_b.keys()]
 
     lkm: dict[int, list] = {}  # kuski_id -> [nimi, a, b]
-    for indeksi, keikat in ((1, a.keikat), (2, b.keikat)):
+    for indeksi, keikat in ((1, keikat_a_lista), (2, keikat_b_lista)):
         for k in keikat:
             rivi = lkm.setdefault(k.paiva_kuski.kuski_id, [k.paiva_kuski.kuski.nimi, 0, 0])
             rivi[indeksi] += 1
@@ -204,10 +215,16 @@ async def versioiden_diff(
     """Mitä muuttui versiosta a versioon b (a = vanha, b = uusi).
     Molempien versioiden pitää olla samalta päivältä."""
     # Omistus ensin, jotta toisen tuotannon versio antaa 404:n eikä 400:aa.
+    # KUSKIlle julkaisematon versio antaa myös 404:n (N1).
     await hae_oma_versio(db, versio_a_id, kayttaja, f"Versiota {versio_a_id} ei löytynyt")
     await hae_oma_versio(db, versio_b_id, kayttaja, f"Versiota {versio_b_id} ei löytynyt")
     a = await _versio_keikkoineen(db, versio_a_id)
     b = await _versio_keikkoineen(db, versio_b_id)
     if a.paiva_id != b.paiva_id:
         raise HTTPException(status_code=400, detail="Versiot ovat eri kuvauspäiviltä")
-    return json_vastaus(laske_diff(a, b), rooli, VERSIODIFF_KUSKILTA_PIILOTETTAVAT)
+    if on_kuski(kayttaja):
+        # Linkittämätön kuski-käyttäjä (kuski_id None) saa tyhjän diffin.
+        diff = laske_diff(a, b, vain_kuski_id=kayttaja.kuski_id or -1)
+    else:
+        diff = laske_diff(a, b)
+    return json_vastaus(diff, rooli, VERSIODIFF_KUSKILTA_PIILOTETTAVAT)
