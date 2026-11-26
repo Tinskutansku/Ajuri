@@ -183,7 +183,7 @@ näkee vain omat keikkansa.
 - **Valmis kun:** testit, ettei KUSKI saa toisen kuskin keikkoja millään
   reitillä
 
-### N2 `[ ]` Frontend: kuskin päivänäkymä puhelimelle
+### N2 `[PR #37]` Frontend: kuskin päivänäkymä puhelimelle
 - KUSKI kirjautuu → näkee oman päivänsä: keikat aikajärjestyksessä,
   nouto-osoite karttalinkkinä, kyytiläiset ja puhelinnumerot
 - Suunniteltu ensisijaisesti puhelimelle (iso teksti, isot napit)
