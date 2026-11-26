@@ -123,3 +123,17 @@ async def test_seed_korjaa_vanhan_kannan_tuplat(client, db_session, kirjaudu):
 
     await seed(db_session)
     _tarkista_ei_tuplia(await _aktiiviset(db_session, paiva_id))
+
+
+async def test_seedin_henkiloilla_on_puhelinnumerot(db_session):
+    """Kuskin päivänäkymän (ROADMAP N2) soittonapit tarvitsevat numerot
+    demossa. Numerot ovat keksittyjä ja yksilöllisiä."""
+    from app.models import Henkilo
+
+    tuotanto, _ = await seed(db_session)
+    henkilot = (
+        await db_session.execute(select(Henkilo).where(Henkilo.tuotanto_id == tuotanto.id))
+    ).scalars().all()
+    numerot = [h.puhelin for h in henkilot]
+    assert numerot and all(n and n.startswith("040 000 ") for n in numerot)
+    assert len(set(numerot)) == len(numerot)

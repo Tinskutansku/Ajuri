@@ -177,13 +177,13 @@ salaisuudet; Claude ei koske niihin.
 **Esihyväksytty (Tanja 13.11.):** roolinäkyvyyden muutos niin, että KUSKI
 näkee vain omat keikkansa.
 
-### N1 `[PR #36]` Backend: kuski näkee vain omat keikkansa
+### N1 `[x]` Backend: kuski näkee vain omat keikkansa
 - KUSKI-roolin token → `kuski_id` → vain hänen keikkansa julkaistusta
   versiosta. Muiden kuskien keikat ja kustannukset eivät näy.
 - **Valmis kun:** testit, ettei KUSKI saa toisen kuskin keikkoja millään
   reitillä
 
-### N2 `[ ]` Frontend: kuskin päivänäkymä puhelimelle
+### N2 `[PR #37]` Frontend: kuskin päivänäkymä puhelimelle
 - KUSKI kirjautuu → näkee oman päivänsä: keikat aikajärjestyksessä,
   nouto-osoite karttalinkkinä, kyytiläiset ja puhelinnumerot
 - Suunniteltu ensisijaisesti puhelimelle (iso teksti, isot napit)

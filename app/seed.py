@@ -159,9 +159,12 @@ async def seed(db: AsyncSession) -> tuple[Tuotanto, Kuvauspaiva]:
     )
 
     # --- Henkilöt: 4 näyttelijää + ohjaaja + apulaisohjaaja + 2 tr-läistä ---
+    # Puhelinnumerot ovat keksittyjä demonumeroita (040 000 xxxx), jotta
+    # kuskin päivänäkymän soittonapit näkyvät demossa (ROADMAP N2).
     nayt1 = await upsert(
         db, Henkilo, tuotanto_id=tuotanto.id, nimi="Näyttelijä 1",
         defaults={
+            "puhelin": "040 000 0001",
             "tyyppi": HenkiloTyyppi.CAST, "roolinimi": "Pääosa",
             "osoite": HOTELLI_KAMP[0], "lat": HOTELLI_KAMP[1], "lon": HOTELLI_KAMP[2],
         },
@@ -169,6 +172,7 @@ async def seed(db: AsyncSession) -> tuple[Tuotanto, Kuvauspaiva]:
     nayt2 = await upsert(
         db, Henkilo, tuotanto_id=tuotanto.id, nimi="Näyttelijä 2",
         defaults={
+            "puhelin": "040 000 0002",
             "tyyppi": HenkiloTyyppi.CAST, "roolinimi": "Sivuosa",
             "osoite": HOTELLI_KAMP[0], "lat": HOTELLI_KAMP[1], "lon": HOTELLI_KAMP[2],
         },
@@ -176,6 +180,7 @@ async def seed(db: AsyncSession) -> tuple[Tuotanto, Kuvauspaiva]:
     nayt3 = await upsert(
         db, Henkilo, tuotanto_id=tuotanto.id, nimi="Näyttelijä 3",
         defaults={
+            "puhelin": "040 000 0003",
             "tyyppi": HenkiloTyyppi.CAST, "roolinimi": "Sivuosa",
             "osoite": KOTI_NAYTTELIJA3[0], "lat": KOTI_NAYTTELIJA3[1], "lon": KOTI_NAYTTELIJA3[2],
         },
@@ -183,6 +188,7 @@ async def seed(db: AsyncSession) -> tuple[Tuotanto, Kuvauspaiva]:
     nayt4 = await upsert(
         db, Henkilo, tuotanto_id=tuotanto.id, nimi="Näyttelijä 4",
         defaults={
+            "puhelin": "040 000 0004",
             "tyyppi": HenkiloTyyppi.CAST, "roolinimi": "Iltapäiväkohtaus",
             "osoite": KOTI_NAYTTELIJA4[0], "lat": KOTI_NAYTTELIJA4[1], "lon": KOTI_NAYTTELIJA4[2],
         },
@@ -190,6 +196,7 @@ async def seed(db: AsyncSession) -> tuple[Tuotanto, Kuvauspaiva]:
     ohjaaja = await upsert(
         db, Henkilo, tuotanto_id=tuotanto.id, nimi="Ohjaaja",
         defaults={
+            "puhelin": "040 000 0005",
             "tyyppi": HenkiloTyyppi.CREW, "titteli": "Ohjaaja",
             "osoite": HOTELLI_SIMONKENTTA[0], "lat": HOTELLI_SIMONKENTTA[1],
             "lon": HOTELLI_SIMONKENTTA[2],
@@ -198,6 +205,7 @@ async def seed(db: AsyncSession) -> tuple[Tuotanto, Kuvauspaiva]:
     apulaisohjaaja = await upsert(
         db, Henkilo, tuotanto_id=tuotanto.id, nimi="Apulaisohjaaja",
         defaults={
+            "puhelin": "040 000 0006",
             "tyyppi": HenkiloTyyppi.CREW, "titteli": "Apulaisohjaaja",
             "osoite": HOTELLI_SIMONKENTTA[0], "lat": HOTELLI_SIMONKENTTA[1],
             "lon": HOTELLI_SIMONKENTTA[2], "oletus_oma_auto": True,
@@ -206,6 +214,7 @@ async def seed(db: AsyncSession) -> tuple[Tuotanto, Kuvauspaiva]:
     tr1 = await upsert(
         db, Henkilo, tuotanto_id=tuotanto.id, nimi="Työryhmäläinen 1",
         defaults={
+            "puhelin": "040 000 0007",
             "tyyppi": HenkiloTyyppi.CREW, "titteli": "Puvustaja",
             "osoite": HOTELLI_SIMONKENTTA[0], "lat": HOTELLI_SIMONKENTTA[1],
             "lon": HOTELLI_SIMONKENTTA[2],
@@ -214,6 +223,7 @@ async def seed(db: AsyncSession) -> tuple[Tuotanto, Kuvauspaiva]:
     tr2 = await upsert(
         db, Henkilo, tuotanto_id=tuotanto.id, nimi="Työryhmäläinen 2",
         defaults={
+            "puhelin": "040 000 0008",
             "tyyppi": HenkiloTyyppi.CREW, "titteli": "Maskeeraaja",
             "osoite": HOTELLI_SIMONKENTTA[0], "lat": HOTELLI_SIMONKENTTA[1],
             "lon": HOTELLI_SIMONKENTTA[2],
