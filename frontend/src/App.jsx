@@ -14,6 +14,7 @@ import Rekisteri from "./Rekisteri.jsx";
 import Pohjatiedot from "./Pohjatiedot.jsx";
 import Tehtavat from "./Tehtavat.jsx";
 import Optimointi from "./Optimointi.jsx";
+import KuskinPaiva from "./KuskinPaiva.jsx";
 
 const TABS = [
   ["rekisteri", "☰ Rekisteri"],
@@ -22,11 +23,9 @@ const TABS = [
   ["optimointi", "★ Optimointi"],
 ];
 
-// KUSKI saa vain lukea. Rekisteri, Pohjatiedot ja Tehtävät ovat
-// muokkausnäkymiä, joten kuski näkee vain ajolistan (Optimointi-välilehti
-// ilman optimointi- ja pois pelistä -nappeja). Backend estää muokkaukset
-// joka tapauksessa (403).
-const KUSKIN_TABS = ["optimointi"];
+// KUSKI saa vain lukea. Kuski ei näe välilehtiä lainkaan, vaan oman
+// päivänsä puhelimelle suunnitellussa näkymässä (KuskinPaiva, ROADMAP N2).
+// Backend estää muokkaukset joka tapauksessa (403).
 
 export default function App() {
   const [kayttaja, setKayttaja] = useState(() => haeIstunto()?.kayttaja ?? null);
@@ -69,7 +68,6 @@ export default function App() {
   };
 
   const muokkaaja = voiMuokata(kayttaja);
-  const tabs = muokkaaja ? TABS : TABS.filter(([k]) => KUSKIN_TABS.includes(k));
 
   return (
     <div style={{ minHeight: "100vh", background: C.paper, color: C.inkSolid, paddingBottom: 80 }}>
@@ -110,10 +108,16 @@ export default function App() {
         </main>
       )}
 
-      {kayttaja && (
+      {kayttaja && !muokkaaja && (
+        <main style={{ maxWidth: 900, margin: "0 auto", padding: "16px 14px 0" }}>
+          <KuskinPaiva />
+        </main>
+      )}
+
+      {kayttaja && muokkaaja && (
         <main style={{ maxWidth: 900, margin: "0 auto", padding: "20px 20px 0" }}>
           <nav style={{ display: "flex", gap: 8, marginBottom: 22, flexWrap: "wrap" }}>
-            {tabs.map(([k, nimi]) => (
+            {TABS.map(([k, nimi]) => (
               <button
                 key={k}
                 onClick={() => setTab(k)}
@@ -135,10 +139,10 @@ export default function App() {
             ))}
           </nav>
 
-          {muokkaaja && tab === "rekisteri" && <Rekisteri />}
-          {muokkaaja && tab === "pohjatiedot" && <Pohjatiedot />}
-          {muokkaaja && tab === "tehtavat" && <Tehtavat />}
-          {(tab === "optimointi" || !muokkaaja) && <Optimointi voiMuokata={muokkaaja} />}
+          {tab === "rekisteri" && <Rekisteri />}
+          {tab === "pohjatiedot" && <Pohjatiedot />}
+          {tab === "tehtavat" && <Tehtavat />}
+          {tab === "optimointi" && <Optimointi voiMuokata={muokkaaja} />}
         </main>
       )}
     </div>

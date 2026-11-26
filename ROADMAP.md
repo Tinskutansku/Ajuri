@@ -177,7 +177,7 @@ salaisuudet; Claude ei koske niihin.
 **Esihyväksytty (Tanja 13.11.):** roolinäkyvyyden muutos niin, että KUSKI
 näkee vain omat keikkansa.
 
-### N1 `[PR #36]` Backend: kuski näkee vain omat keikkansa
+### N1 `[x]` Backend: kuski näkee vain omat keikkansa
 - KUSKI-roolin token → `kuski_id` → vain hänen keikkansa julkaistusta
   versiosta. Muiden kuskien keikat ja kustannukset eivät näy.
 - **Valmis kun:** testit, ettei KUSKI saa toisen kuskin keikkoja millään
