@@ -45,6 +45,13 @@ class TehtavaTyyppi(enum.Enum):
     PALUU = "paluu"
     TAVARA = "tavara"         # kortit, lounas, lämpölaatikot...
 
+class KeikkaTila(enum.Enum):
+    """Kuskin kuittaukset (ROADMAP N3). Etenee vain eteenpäin kuskin
+    tekemänä, koordi/tuotanto voi perua (app/routers/keikat.py)."""
+    ODOTTAA = "odottaa"
+    KYYDISSA = "kyydissa"     # kyytiläinen noudettu
+    PERILLA = "perilla"       # jätetty perille -> myös kuitattu
+
 class KayttajaRooli(enum.Enum):
     TUOTANTO = "tuotanto"     # näkee kustannukset, muokkaa kaikkea
     KOORDI = "koordi"         # muokkaa ajolistoja, näkee kustannukset
@@ -295,6 +302,12 @@ class Keikka(Base):
     jarjestys: Mapped[int]                                         # kuskin reitin järjestysnro
     kasin_siirretty: Mapped[bool] = mapped_column(default=False)   # koordi ohitti optimoijan
     kuitattu: Mapped[bool] = mapped_column(default=False)          # ajettu -> lukitaan reoptimoinnissa
+    # N3: kuskin kuittaukset. Uudelleenoptimointi kopioi nämä uuteen
+    # versioon tehtävän mukaan kuten kuitattu-tiedon, ja muu kuin
+    # ODOTTAA lukitsee keikan (app/routers/optimointi.py).
+    tila: Mapped[KeikkaTila] = mapped_column(Enum(KeikkaTila), default=KeikkaTila.ODOTTAA)
+    kyydissa_klo: Mapped[datetime | None]                          # UTC, milloin kuski kuittasi noudon
+    perilla_klo: Mapped[datetime | None]                           # UTC, milloin kuski kuittasi jäton
 
     versio: Mapped["AjolistaVersio"] = relationship(back_populates="keikat")
     tehtava: Mapped["Tehtava"] = relationship()

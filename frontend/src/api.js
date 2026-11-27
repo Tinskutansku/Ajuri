@@ -223,6 +223,11 @@ export function haeVersiot(paivaId) {
 export function haeKeikat(versioId) {
   return pyyda(`/keikat?versio_id=${versioId}`);
 }
+// N3: tila = "odottaa" | "kyydissa" | "perilla". KUSKI saa kuitata vain
+// oman keikkansa eteenpäin; koordi ja tuotanto voivat myös perua.
+export function asetaKeikanTila(keikkaId, tila) {
+  return pyyda(`/keikat/${keikkaId}/tila`, json("POST", { tila }));
+}
 // Vastaus: { paiva_id, kaynnissa, viimeisin_versio_id }. Kevyt, kysellään
 // muutaman sekunnin välein, kun laskenta on kesken.
 export function haeOptimoinninTila(paivaId) {

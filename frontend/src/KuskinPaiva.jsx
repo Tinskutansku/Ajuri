@@ -13,10 +13,17 @@
    Karttalinkki on tavallinen linkki Google Mapsin reittihakuun
    (https://www.google.com/maps/dir/?api=1&destination=...). Sovellus ei
    kutsu karttapalvelua itse; puhelin avaa linkin karttasovelluksessa vasta,
-   kun kuski napauttaa sitä. */
+   kun kuski napauttaa sitä.
+
+   Kuittaukset (ROADMAP N3): jokaisella noudolla on iso nappi, joka vie
+   keikan tilan eteenpäin: "Kyydissä" noudettaessa ja "Perillä" jätettäessä.
+   Backend sallii kuskille vain oman keikan ja vain eteenpäin; virheen
+   sattuessa (esim. koordi on julkaissut uuden version) viesti näkyy noudon
+   alla ja "↻ Päivitä" hakee ajantasaisen listan. */
 
 import { useEffect, useState } from "react";
 import {
+  asetaKeikanTila,
   haeAjoneuvot,
   haeHenkilot,
   haeKeikat,
@@ -55,6 +62,10 @@ function karttaLinkki(osoite, lat, lon) {
   const kohde = lat != null && lon != null ? `${lat},${lon}` : osoite;
   return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(kohde)}`;
 }
+
+// Aikaleimat ovat kannassa UTC:nä ilman aikavyöhykettä -> paikallinen kello.
+const kellonaika = (iso) =>
+  iso ? new Date(`${iso}Z`).toLocaleTimeString("fi-FI", { hour: "2-digit", minute: "2-digit" }) : "";
 
 // tel:-linkistä pois välilyönnit ja väliviivat ("040 123 4567" -> "0401234567").
 const puhelinLinkki = (numero) => `tel:${numero.replace(/[^\d+]/g, "")}`;
@@ -183,7 +194,67 @@ function SoittoNappi({ nimi, puhelin }) {
   );
 }
 
-function Nouto({ k }) {
+// Seuraava kuittaus tilasta: odottaa -> kyydissä -> perillä.
+const SEURAAVA = {
+  odottaa: { tila: "kyydissa", teksti: "Kyydissä", kuvaus: "Merkitse noudetuksi" },
+  kyydissa: { tila: "perilla", teksti: "Perillä", kuvaus: "Merkitse perille viedyksi" },
+};
+
+function TilaNappi({ k, kyytilainen, onMuuttui }) {
+  const [lahettaa, setLahettaa] = useState(false);
+  const [virhe, setVirhe] = useState(null);
+  const seuraava = SEURAAVA[k.tila];
+
+  async function kuittaa() {
+    setLahettaa(true);
+    setVirhe(null);
+    try {
+      onMuuttui(await asetaKeikanTila(k.id, seuraava.tila));
+    } catch (e) {
+      setVirhe(e.message);
+    } finally {
+      setLahettaa(false);
+    }
+  }
+
+  return (
+    <div style={{ display: "grid", gap: 6 }}>
+      {k.tila !== "odottaa" && (
+        <div style={{ ...pieni, color: C.teal }}>
+          {k.kyydissa_klo && `✓ Kyydissä ${kellonaika(k.kyydissa_klo)}`}
+          {k.kyydissa_klo && k.perilla_klo && " · "}
+          {k.perilla_klo && `✓ Perillä ${kellonaika(k.perilla_klo)}`}
+        </div>
+      )}
+      {seuraava && (
+        <button
+          type="button"
+          onClick={kuittaa}
+          disabled={lahettaa}
+          aria-label={`${seuraava.kuvaus}: ${kyytilainen}`}
+          style={{
+            ...isoNappi,
+            justifyContent: "center",
+            cursor: lahettaa ? "wait" : "pointer",
+            opacity: lahettaa ? 0.6 : 1,
+            background: k.tila === "odottaa" ? C.ochre : C.teal,
+            color: k.tila === "odottaa" ? C.inkSolid : C.card,
+          }}
+        >
+          <span aria-hidden="true">✓</span>
+          <span>{lahettaa ? "Tallennetaan…" : seuraava.teksti}</span>
+        </button>
+      )}
+      {virhe && (
+        <div role="alert" style={{ ...pieni, color: C.rust }}>
+          ⚠ Kuittaus epäonnistui: {virhe}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Nouto({ k, onKeikkaMuuttui }) {
   const kyytilainen = k.henkilo?.nimi ?? k.nimi;
   return (
     <div style={{ padding: "14px 0", borderBottom: `1px solid ${C.ink}` }}>
@@ -193,13 +264,14 @@ function Nouto({ k }) {
         {k.henkilo?.kuvaus && <span style={pieni}>{k.henkilo.kuvaus}</span>}
         {k.henkiloita > 1 && <span style={pieni}>{k.henkiloita} hlö</span>}
         {k.henkiloita === 0 && <span style={pieni}>tavara</span>}
-        {k.kuitattu && <span style={{ ...pieni, color: C.teal }}>✓ kuitattu</span>}
+        {k.kuitattu && k.tila !== "perilla" && <span style={{ ...pieni, color: C.teal }}>✓ kuitattu</span>}
       </div>
       {/* Tehtävän nimi vain, jos se kertoo jotain muuta kuin "Nouto: <nimi>" */}
       {k.henkilo && !k.nimi.includes(kyytilainen) && <div style={{ ...pieni, marginBottom: 8 }}>{k.nimi}</div>}
       <div style={{ display: "grid", gap: 10 }}>
         <KarttaNappi osoite={k.mista} linkki={k.mista_linkki} />
         {k.henkilo && <SoittoNappi nimi={kyytilainen} puhelin={k.henkilo.puhelin} />}
+        <TilaNappi k={k} kyytilainen={kyytilainen} onMuuttui={onKeikkaMuuttui} />
       </div>
       {k.huomiot.map((h, i) => (
         <div
@@ -233,7 +305,7 @@ function jatot(keikat) {
   return tulos;
 }
 
-function Kyyti({ kyyti, nro }) {
+function Kyyti({ kyyti, nro, onKeikkaMuuttui }) {
   const henkiloita = kyyti.keikat.reduce((s, k) => s + k.henkiloita, 0);
   return (
     <section
@@ -260,7 +332,7 @@ function Kyyti({ kyyti, nro }) {
         {kyyti.keikat.length > 1 ? "Noudot" : "Nouto"}
       </div>
       {kyyti.keikat.map((k) => (
-        <Nouto key={k.id} k={k} />
+        <Nouto key={k.id} k={k} onKeikkaMuuttui={onKeikkaMuuttui} />
       ))}
 
       <div style={{ ...pieni, marginTop: 14, textTransform: "uppercase", letterSpacing: "0.06em" }}>Perillä</div>
@@ -329,6 +401,25 @@ export default function KuskinPaiva() {
   const data = haku && paiva && haku.paivaId === paiva.id ? haku.data : null;
   const virhe = paivatVirhe ?? (haku?.avain === avain ? haku.virhe : null);
   const paivitetty = data ? haku.aika : null;
+
+  // Kuittauksen vastaus päivittää vain kyseisen keikan tilan, ei koko listaa.
+  function paivitaKeikka(uusi) {
+    setHaku((ed) =>
+      ed?.data
+        ? {
+            ...ed,
+            data: {
+              ...ed.data,
+              keikat: ed.data.keikat.map((k) =>
+                k.id === uusi.id
+                  ? { ...k, tila: uusi.tila, kyydissa_klo: uusi.kyydissa_klo, perilla_klo: uusi.perilla_klo, kuitattu: uusi.kuitattu }
+                  : k
+              ),
+            },
+          }
+        : ed
+    );
+  }
 
   const jarjestetytPaivat = [...paivat].sort((a, b) => a.pvm.localeCompare(b.pvm));
   const kyydit = data ? ryhmitteleKyydeiksi(data.keikat) : [];
@@ -425,7 +516,7 @@ export default function KuskinPaiva() {
               ` · päivitetty ${paivitetty.toLocaleTimeString("fi-FI", { hour: "2-digit", minute: "2-digit" })}`}
           </div>
           {kyydit.map((k, i) => (
-            <Kyyti key={k.keikat[0].id} kyyti={k} nro={i + 1} />
+            <Kyyti key={k.keikat[0].id} kyyti={k} nro={i + 1} onKeikkaMuuttui={paivitaKeikka} />
           ))}
         </>
       )}

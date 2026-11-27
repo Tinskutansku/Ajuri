@@ -183,17 +183,20 @@ näkee vain omat keikkansa.
 - **Valmis kun:** testit, ettei KUSKI saa toisen kuskin keikkoja millään
   reitillä
 
-### N2 `[PR #37]` Frontend: kuskin päivänäkymä puhelimelle
+### N2 `[x]` Frontend: kuskin päivänäkymä puhelimelle
 - KUSKI kirjautuu → näkee oman päivänsä: keikat aikajärjestyksessä,
   nouto-osoite karttalinkkinä, kyytiläiset ja puhelinnumerot
 - Suunniteltu ensisijaisesti puhelimelle (iso teksti, isot napit)
 - **Valmis kun:** lint + build, kuvakaappaus mobiilileveydellä
 
-### N3 `[ ]` "Kyydissä" / "Perillä" -kuittaukset
+### N3 `[PR #40]` "Kyydissä" / "Perillä" -kuittaukset
 - Keikalle tila (odottaa / kyydissä / perillä) ja aikaleimat
 - Tämä vaatii keikka-tauluun uusia sarakkeita, eli tietokantamuutoksen,
   jota ei ole esihyväksytty. Avaa ensin `needs-decision`-issue, jossa on
   ehdotettu skeema.
+- Päätetty (Tanja 27.11., issue #38, vaihtoehto A): `tila`, `kyydissa_klo`
+  ja `perilla_klo` keikka-tauluun. KUSKI saa kuitata oman keikkansa
+  (`POST /keikat/{id}/tila`) vain eteenpäin; koordi ja tuotanto voivat perua.
 
 ## Vaihe O — Excel-tuonti rekisteriin (V2 #2)
 

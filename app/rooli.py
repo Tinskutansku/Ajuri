@@ -12,7 +12,7 @@ Kolme dependencyä:
   muuttuneet K2:ssa.
 - `vaadi_kirjautuminen`: liitetään reitittimiin `main.py`:ssä. Vaatii
   tokenin kaikilta reiteiltä ja estää KUSKI-roolilta kaikki muokkaukset
-  (403).
+  (403). Ainoa poikkeus on `KUSKILLE_SALLITUT_MUOKKAUKSET` (ROADMAP N3).
 
 FastAPI välimuistittaa dependencyt pyynnön sisällä, joten käyttäjä
 haetaan kannasta vain kerran, vaikka reitti käyttäisi useampaa näistä.
@@ -32,6 +32,12 @@ EI_OIKEUTTA_MUOKATA = "Kuski-roolilla ei voi muokata tietoja."
 # Metodit, jotka eivät muuta mitään. Kaikki muut (POST, PUT, PATCH,
 # DELETE) ovat muokkauksia, jotka KUSKI-roolilta on estetty.
 LUKUMETODIT = frozenset({"GET", "HEAD", "OPTIONS"})
+
+# Muokkaukset, jotka KUSKI saa silti tehdä (metodi, reitin polkumalli).
+# Tanjan päätös issuessa #38: kuski kuittaa oman keikkansa tilan
+# (kyydissä / perillä). Reitti itse tarkistaa, että keikka on kuskin oma
+# ja julkaistussa versiossa, ja että tila etenee vain eteenpäin.
+KUSKILLE_SALLITUT_MUOKKAUKSET = frozenset({("POST", "/keikat/{keikka_id}/tila")})
 
 _bearer = HTTPBearer(auto_error=False)
 
@@ -79,5 +85,9 @@ async def vaadi_kirjautuminen(
     KUSKI yrittää muokata. Backend estää muokkaukset riippumatta siitä,
     näyttääkö frontend napit."""
     if kayttaja.rooli == KayttajaRooli.KUSKI and request.method not in LUKUMETODIT:
-        raise HTTPException(status_code=403, detail=EI_OIKEUTTA_MUOKATA)
+        # FastAPI asettaa täsmätyn reitin scopeen ennen dependencyjä.
+        reitti = request.scope.get("route")
+        polku = getattr(reitti, "path", None)
+        if (request.method, polku) not in KUSKILLE_SALLITUT_MUOKKAUKSET:
+            raise HTTPException(status_code=403, detail=EI_OIKEUTTA_MUOKATA)
     return kayttaja
