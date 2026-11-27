@@ -189,7 +189,7 @@ näkee vain omat keikkansa.
 - Suunniteltu ensisijaisesti puhelimelle (iso teksti, isot napit)
 - **Valmis kun:** lint + build, kuvakaappaus mobiilileveydellä
 
-### N3 `[PR #40]` "Kyydissä" / "Perillä" -kuittaukset
+### N3 `[PR #41]` "Kyydissä" / "Perillä" -kuittaukset
 - Keikalle tila (odottaa / kyydissä / perillä) ja aikaleimat
 - Tämä vaatii keikka-tauluun uusia sarakkeita, eli tietokantamuutoksen,
   jota ei ole esihyväksytty. Avaa ensin `needs-decision`-issue, jossa on
