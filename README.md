@@ -20,9 +20,9 @@ herää.
 
 ![Optimoitu ajolista: kuskit aikajanoineen ja päivän lisäkustannus](docs/demo.png)
 
-| Kirjautuminen demonapeilla | Puhelimella | Rekisteri |
+| Kirjautuminen demonapeilla | Kuskin päivä puhelimella | Rekisteri |
 |---|---|---|
-| ![Kirjautumissivu leveänä](docs/kuvakaappaukset/kirjautuminen-demo-levea.png) | ![Kirjautumissivu puhelimella](docs/kuvakaappaukset/kirjautuminen-demo-mobiili.png) | ![Rekisterin lomake](docs/kuvakaappaukset/rekisteri-kenttaotsikot-levea.png) |
+| ![Kirjautumissivu leveänä](docs/kuvakaappaukset/kirjautuminen-demo-levea.png) | ![Kuskin oma päivä puhelimella: keikat, karttalinkit ja soittonapit](docs/kuvakaappaukset/kuskin-paiva-mobiili.png) | ![Rekisterin lomake](docs/kuvakaappaukset/rekisteri-kenttaotsikot-levea.png) |
 
 ## Miksi tämä on vaikea ongelma
 
@@ -127,7 +127,8 @@ alembic/                 Tietokantamigraatiot
 tests/                   Pytest-testit
 frontend/src/            React-frontti: Rekisteri, Pohjatiedot, Tehtävät,
                          Optimointi (tulos, tulostus, versiodiffi,
-                         kuski pois pelistä), yhteinen OsoiteKentta
+                         kuski pois pelistä), kirjautuminen, kuskin
+                         päivänäkymä puhelimelle, yhteinen OsoiteKentta
 scripts/                 Windowsin käynnistys- ja sammutusskriptit
 docs/                    Spesifikaatiot, tuotekartta, käynnistysohjeet
 .github/workflows/ci.yml CI: pytest, Docker Compose + migraatiot, frontti
@@ -215,8 +216,8 @@ Sovellus avautuu kirjautumissivulle. Kirjaudu jollakin alla olevista
 demotunnuksista (Kirjautuminen-osio). Istunto pidetään selaimen
 `sessionStorage`ssa: sivun päivitys ei kirjaa ulos, mutta välilehden
 sulkeminen kirjaa. Kun token vanhenee (12 h), sovellus palaa
-kirjautumissivulle viestillä "Istunto vanheni". Kuski näkee vain
-Optimointi-välilehden ajolistan ilman muokkausnappeja.
+kirjautumissivulle viestillä "Istunto vanheni". Kuski ei näe välilehtiä
+lainkaan, vaan oman päivänsä (ks. alla).
 
 Frontin välilehdet kulkevat työn järjestyksessä:
 
@@ -233,6 +234,14 @@ Frontin välilehdet kulkevat työn järjestyksessä:
   -hätänappi, joka optimoi loppupäivän uudelleen kuitatut keikat
   lukittuina. Päivän viimeisin ajolista näkyy heti, ja kesken oleva
   laskenta jatkuu, vaikka sivun päivittäisi.
+
+**Kuskin päivä** (KUSKI-rooli) on tehty ensisijaisesti puhelimelle. Kuski
+näkee julkaistusta ajolistasta vain omat keikkansa aikajärjestyksessä
+kyydeiksi ryhmiteltyinä: nouto- ja jättöosoitteet karttalinkkeinä,
+kyytiläiset ja heidän puhelinnumeronsa soittonappeina. Karttalinkki avaa
+puhelimen karttasovelluksen vasta napautettaessa, sovellus ei itse kutsu
+karttapalvelua. Demossa tämän näkee "Kokeile demoa → Kuskina" -napista
+(seedin henkilöillä on keksityt 040 000 xxxx -numerot).
 
 ### Käyttäjät ja kirjautuminen
 
@@ -392,6 +401,12 @@ henkilö-/kuskikohtaiset bufferi- ja aikapreferenssikentät
 `kuski.pickup_bufferi_min`, `kuski.tuntihinta_eur`) — nämä eivät katoa
 vain `null`:iksi, vaan puuttuvat JSON-vastauksesta kokonaan.
 
+KUSKI näkee lisäksi vain julkaistut ajolistaversiot ja niistä vain omat
+keikkansa (käyttäjän `kuski_id`). Luonnos tai vanha versio näyttää
+kuskille samalta kuin olematon (404), ja versiodiffissäkin näkyvät vain
+omat keikat. Kuskiin linkittämätön kuski-käyttäjä ei näe yhtään keikkaa.
+Säännöt ovat `app/omistus.py`:ssä.
+
 Rooli luetaan kirjautumistokenista (`app/rooli.py`). Vanhaa
 `X-Rooli`-headeria ei enää lueta. Kenttäsuodatus on yhdessä paikassa,
 `app/response_filter.py`.
@@ -412,16 +427,17 @@ omassa prosessissaan, reoptimointi ("kuski pois pelistä"), versiointi,
 värikoodaus ja versiodiffi, tulostusversio, osoite-ehdotukset
 kirjoittaessa, soft delete kaikelle datalle, palveluaikabufferit,
 roolipohjainen kenttäsuodatus ja geokoodaus välimuisteineen.
+Lisäksi kirjautuminen (salasanat, JWT, tuotantokohtainen näkyvyys),
+kovennukset (prod-asetukset, pyyntörajoitukset, syötteiden rajat,
+haavoittuvuusskannaus CI:ssä), demojulkaisu Renderiin sekä kuskin oma
+päivänäkymä puhelimelle, jossa kuski näkee vain omat keikkansa.
 
-**Seuraavaksi** ([ROADMAP.md](ROADMAP.md)):
+**Työn alla ja seuraavaksi** ([ROADMAP.md](ROADMAP.md)):
 
-1. **Kuskin mobiilinäkymä** — kuski näkee puhelimesta vain oman päivänsä
-   ja kuittaa keikat
-2. **Excel-tuonti** rekisteriin esikatselulla
-
-Valmiina ovat myös kirjautuminen (salasanat, JWT, tuotantokohtainen
-näkyvyys), kovennukset (prod-asetukset, pyyntörajoitukset, syötteiden
-rajat, haavoittuvuusskannaus CI:ssä) ja demojulkaisu Renderiin.
+1. **Excel-tuonti rekisteriin** esikatselulla: backend on PR:nä (#39),
+   frontin "Tuo Excelistä" -näkymä tulee sen jälkeen
+2. **"Kyydissä" / "Perillä" -kuittaukset** kuskin näkymään: vaatii
+   tietokantamuutoksen, jonka skeemasta päätetään ensin (#38)
 
 Pidemmän aikavälin suunta ja perustelut ovat tiedostossa
 [docs/tuotekartta.md](docs/tuotekartta.md). Optimoijan rajapinta,
