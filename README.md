@@ -296,6 +296,28 @@ curl -H "Authorization: Bearer $TOKEN" http://localhost:8000/henkilot
 
 Swaggerissa (`/docs`) token annetaan Authorize-napista.
 
+### Excel-tuonti rekisteriin
+
+Henkilöt voi tuoda xlsx-tiedostosta kahdessa vaiheessa. Tiedosto lähetetään
+sellaisenaan pyynnön runkona (ei lomakkeena):
+
+```
+# 1) esikatselu: rivit tulkittuina ja virheet riveittäin, ei tallenna
+curl -X POST -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" \
+  --data-binary @henkilot.xlsx http://localhost:8000/tuotannot/1/tuonti/esikatselu
+# 2) tallennus: sama tiedosto, kelvolliset rivit tallennetaan
+curl -X POST ... --data-binary @henkilot.xlsx http://localhost:8000/tuotannot/1/tuonti
+# 3) osoitteiden koordinaatit erissä, kunnes jaljella = 0
+curl -X POST -H "Authorization: Bearer $TOKEN" http://localhost:8000/tuotannot/1/geokoodaa
+```
+
+Ensimmäinen ei-tyhjä rivi on otsikkorivi. Tunnistetut sarakkeet: `Nimi`
+(pakollinen), `Tyyppi` (cast / crew, myös näyttelijä / työryhmä), `Rooli`,
+`Titteli`, `Puhelin`, `Osoite`, `Huomiot`. Muut sarakkeet ohitetaan. Jos
+tyyppi puuttuu, rivi on cast kun sillä on rooli, muuten crew. Rajat: 2 Mt,
+500 riviä. Esimerkkitiedostot: `tests/data/`.
+
 Tokenin allekirjoitusavain luetaan ympäristömuuttujasta `JWT_SECRET`.
 Kehityksessä (`AJURI_YMPARISTO=dev`, oletus) käytetään sisäänrakennettua
 kehitysavainta, jos muuttujaa ei ole asetettu. Kun `AJURI_YMPARISTO=prod`,

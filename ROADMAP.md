@@ -202,7 +202,7 @@ näkee vain omat keikkansa.
 
 **Esihyväksytty (Tanja 13.11.):** riippuvuus `openpyxl`.
 
-### O1 `[ ]` Backend: tuonti esikatselulla
+### O1 `[x]` Backend: tuonti esikatselulla
 - `POST /tuotannot/{id}/tuonti/esikatselu` (xlsx) → rivit tulkittuina,
   virheet riveittäin, tunnistetut sarakkeet
 - `POST /tuotannot/{id}/tuonti` vahvistaa ja tallentaa (osoitteet

@@ -28,6 +28,7 @@ from app.routers import (
     tehtava,
     tehtava_generointi,
     tuotanto,
+    tuonti,
     versiot,
 )
 
@@ -146,6 +147,7 @@ def luo_sovellus(asetukset: Settings) -> FastAPI:
         keikat.router,
         optimointi.router,
         osoitteet.router,
+        tuonti.router,
     ):
         app.include_router(reititin, dependencies=kirjautuneille)
 
