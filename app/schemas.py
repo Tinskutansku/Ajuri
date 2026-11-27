@@ -494,6 +494,47 @@ class GeokoodausTulos(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Excel-tuonti rekisteriin (app/routers/tuonti.py, ROADMAP O1)
+# ---------------------------------------------------------------------------
+
+
+class HenkiloTuontiRivi(BaseModel):
+    """Excelistä luettavat henkilön kentät. Samat rajat kuin HenkiloBase:ssa."""
+    tyyppi: HenkiloTyyppi
+    nimi: str = Field(max_length=NIMI_MAX)
+    roolinimi: str | None = Field(default=None, max_length=NIMI_MAX)
+    titteli: str | None = Field(default=None, max_length=NIMI_MAX)
+    puhelin: str | None = Field(default=None, max_length=PUHELIN_MAX)
+    osoite: str | None = Field(default=None, max_length=OSOITE_MAX)
+    huomiot: str | None = Field(default=None, max_length=TEKSTI_MAX)
+
+
+class TuontiSarake(BaseModel):
+    otsikko: str            # sarakkeen otsikko tiedostossa
+    kentta: str | None      # tunnistettu henkilön kenttä, None = saraketta ei käytetä
+
+
+class TuontiRiviVastaus(BaseModel):
+    rivi: int                              # Excelin rivinumero
+    henkilo: HenkiloTuontiRivi | None      # None jos rivillä on virheitä
+    virheet: list[str]                     # rivi ohitetaan tallennuksessa
+    varoitukset: list[str]                 # rivi tallennetaan silti
+
+
+class TuontiEsikatselu(BaseModel):
+    sarakkeet: list[TuontiSarake]
+    rivit: list[TuontiRiviVastaus]
+    kelvollisia: int
+    virheellisia: int
+
+
+class TuontiTallennus(BaseModel):
+    tallennettu: int
+    ohitetut_rivit: list[int]   # virheelliset rivit (Excelin rivinumerot), joita ei tallennettu
+    geokoodaamatta: int         # tallennettuja, joilla on osoite: täydennä POST /tuotannot/{id}/geokoodaa
+
+
+# ---------------------------------------------------------------------------
 # Kirjautuminen (app/routers/auth.py)
 # ---------------------------------------------------------------------------
 
