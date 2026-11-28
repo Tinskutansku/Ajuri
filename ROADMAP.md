@@ -199,7 +199,7 @@ näkee vain omat keikkansa.
 
 **Esihyväksytty (Tanja 13.11.):** riippuvuus `openpyxl`.
 
-### O1 `[PR #39]` Backend: tuonti esikatselulla
+### O1 `[x]` Backend: tuonti esikatselulla
 - `POST /tuotannot/{id}/tuonti/esikatselu` (xlsx) → rivit tulkittuina,
   virheet riveittäin, tunnistetut sarakkeet
 - `POST /tuotannot/{id}/tuonti` vahvistaa ja tallentaa (osoitteet
@@ -216,7 +216,7 @@ näkee vain omat keikkansa.
   rikkinäinen tiedosto, puuttuvat sarakkeet, `.xlsx`-päätteinen muu tiedosto
   ja zip-pommi
 
-### O2 `[ ]` Frontend: tuonti Rekisteriin
+### O2 `[PR #42]` Frontend: tuonti Rekisteriin
 - "Tuo Excelistä" → esikatselutaulukko → vahvista
 - Ladattava pohjatiedosto oikeilla sarakkeilla
 - **Valmis kun:** lint + build, ohje kokeiluun pohjatiedostolla
