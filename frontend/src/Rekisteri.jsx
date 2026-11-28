@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { C, Kortti, Nappi, Kentta, KenttaOtsikolla, Ruksi, Badge, riviTyyli, pikkuLabel, vihje, SOPIMUS_NIMI } from "./ui.jsx";
 import * as api from "./api.js";
 import OsoiteKentta from "./OsoiteKentta.jsx";
+import ExcelTuonti from "./ExcelTuonti.jsx";
 
 const naytaNumero = (v) => (v == null ? "" : String(v));
 const parsiNumero = (s) => (String(s).trim() === "" ? null : Number(s));
@@ -54,6 +55,9 @@ export default function Rekisteri() {
       .catch((e) => setTuotantoVirhe(e.message));
   }, []);
 
+  // Kasvatetaan Excel-tuonnin jälkeen, jotta listat haetaan uudelleen.
+  const [latausKierros, setLatausKierros] = useState(0);
+
   useEffect(() => {
     if (!tuotantoId) return;
     api
@@ -70,7 +74,7 @@ export default function Rekisteri() {
         tallennettuKuskiRef.current = Object.fromEntries(ks.map((k) => [k.id, k]));
       })
       .catch((e) => setVirhe(e.message));
-  }, [tuotantoId]);
+  }, [tuotantoId, latausKierros]);
 
   // --- Henkilöt ---
   const muutaHenkiloPaikallisesti = (id, patch) =>
@@ -508,6 +512,8 @@ export default function Rekisteri() {
               </Nappi>
             </div>
           </Kortti>
+
+          <ExcelTuonti tuotantoId={tuotantoId} onTuotu={() => setLatausKierros((n) => n + 1)} />
 
           <p style={vihje}>
             Koordinaatteja ei syötetä käsin — ne haetaan automaattisesti osoitteesta kun rivi

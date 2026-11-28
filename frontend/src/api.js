@@ -7,7 +7,7 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 const OLETUS_AIKARAJA_MS = 20000;
 
 async function pyyda(polku, options = {}) {
-  const { aikarajaMs = OLETUS_AIKARAJA_MS, signal: kutsujanSignal, ...loput } = options;
+  const { aikarajaMs = OLETUS_AIKARAJA_MS, signal: kutsujanSignal, headers: lisaOtsakkeet, ...loput } = options;
   const ohjain = new AbortController();
   const ajastin = setTimeout(() => ohjain.abort("aikaraja"), aikarajaMs);
   const peru = () => ohjain.abort(kutsujanSignal.reason);
@@ -16,6 +16,9 @@ async function pyyda(polku, options = {}) {
   const token = haeToken();
   const otsakkeet = { "Content-Type": "application/json" };
   if (token) otsakkeet.Authorization = `Bearer ${token}`;
+  // Kutsujan otsakkeet (esim. tiedoston Content-Type) yhdistetään, eivät
+  // korvaa koko otsakejoukkoa, jotta Authorization säilyy.
+  Object.assign(otsakkeet, lisaOtsakkeet);
   let vastaus;
   try {
     vastaus = await fetch(`${API_BASE}${polku}`, {
@@ -108,6 +111,33 @@ export function poistaHenkilo(id) {
 }
 export function haeHenkiloKaytto(id) {
   return pyyda(`/henkilot/${id}/kaytto`);
+}
+
+// --- Excel-tuonti rekisteriin (ROADMAP O1/O2) ---
+// Tiedosto lähetetään sellaisenaan pyynnön runkona, ei multipart-lomakkeena.
+
+const XLSX_TYYPPI = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+const tiedostoRunkona = (tiedosto) => ({
+  method: "POST",
+  body: tiedosto,
+  headers: { "Content-Type": XLSX_TYYPPI },
+  aikarajaMs: 60000,
+});
+
+// Vastaus: { sarakkeet: [{otsikko, kentta}], rivit: [{rivi, henkilo, virheet, varoitukset}],
+//            kelvollisia, virheellisia }. Ei tallenna mitään.
+export function esikatseleTuonti(tuotantoId, tiedosto) {
+  return pyyda(`/tuotannot/${tuotantoId}/tuonti/esikatselu`, tiedostoRunkona(tiedosto));
+}
+// Vastaus: { tallennettu, ohitetut_rivit, geokoodaamatta }
+export function tallennaTuonti(tuotantoId, tiedosto) {
+  return pyyda(`/tuotannot/${tuotantoId}/tuonti`, tiedostoRunkona(tiedosto));
+}
+// Täydentää koordinaatittomat osoitteet erissä (Nominatim 1 kutsu/s).
+// Vastaus: { henkilot_paivitetty, henkilot_epaonnistui, ..., jaljella }.
+// Kutsu uudestaan kunnes jaljella on 0.
+export function geokoodaaTuotanto(tuotantoId) {
+  return pyyda(`/tuotannot/${tuotantoId}/geokoodaa`, { method: "POST", aikarajaMs: 90000 });
 }
 
 export function haeKuskit(tuotantoId, { sisallaPassiiviset = false } = {}) {

@@ -219,7 +219,7 @@ näkee vain omat keikkansa.
   rikkinäinen tiedosto, puuttuvat sarakkeet, `.xlsx`-päätteinen muu tiedosto
   ja zip-pommi
 
-### O2 `[ ]` Frontend: tuonti Rekisteriin
+### O2 `[PR #42]` Frontend: tuonti Rekisteriin
 - "Tuo Excelistä" → esikatselutaulukko → vahvista
 - Ladattava pohjatiedosto oikeilla sarakkeilla
 - **Valmis kun:** lint + build, ohje kokeiluun pohjatiedostolla
