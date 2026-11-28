@@ -189,17 +189,20 @@ näkee vain omat keikkansa.
 - Suunniteltu ensisijaisesti puhelimelle (iso teksti, isot napit)
 - **Valmis kun:** lint + build, kuvakaappaus mobiilileveydellä
 
-### N3 `[odottaa päätöstä #38]` "Kyydissä" / "Perillä" -kuittaukset
+### N3 `[PR #41]` "Kyydissä" / "Perillä" -kuittaukset
 - Keikalle tila (odottaa / kyydissä / perillä) ja aikaleimat
 - Tämä vaatii keikka-tauluun uusia sarakkeita, eli tietokantamuutoksen,
   jota ei ole esihyväksytty. Avaa ensin `needs-decision`-issue, jossa on
   ehdotettu skeema.
+- Päätetty (Tanja 27.11., issue #38, vaihtoehto A): `tila`, `kyydissa_klo`
+  ja `perilla_klo` keikka-tauluun. KUSKI saa kuitata oman keikkansa
+  (`POST /keikat/{id}/tila`) vain eteenpäin; koordi ja tuotanto voivat perua.
 
 ## Vaihe O — Excel-tuonti rekisteriin (V2 #2)
 
 **Esihyväksytty (Tanja 13.11.):** riippuvuus `openpyxl`.
 
-### O1 `[PR #39]` Backend: tuonti esikatselulla
+### O1 `[x]` Backend: tuonti esikatselulla
 - `POST /tuotannot/{id}/tuonti/esikatselu` (xlsx) → rivit tulkittuina,
   virheet riveittäin, tunnistetut sarakkeet
 - `POST /tuotannot/{id}/tuonti` vahvistaa ja tallentaa (osoitteet

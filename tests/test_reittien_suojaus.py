@@ -34,7 +34,7 @@ from app.models import (
     TehtavaTyyppi,
     Tuotanto,
 )
-from app.rooli import EI_KIRJAUTUNUT, EI_OIKEUTTA_MUOKATA
+from app.rooli import EI_KIRJAUTUNUT, EI_OIKEUTTA_MUOKATA, KUSKILLE_SALLITUT_MUOKKAUKSET
 
 # Reitit, jotka toimivat ilman tokenia. /auth/mina tarkistaa tokenin itse
 # (testattu test_kirjautuminen.py:ssä), mutta kuuluu silti 401-testiin.
@@ -159,7 +159,18 @@ async def test_passivoitu_kayttaja_ja_vanhentunut_rooli_401(client, db_session, 
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize(("metodi", "polku"), MUOKKAAVAT, ids=[f"{m} {p}" for m, p in MUOKKAAVAT])
+# N3 (Tanjan päätös issuessa #38): kuski saa kuitata oman keikkansa tilan.
+# Reitin omat tarkistukset testataan tiedostossa test_keikan_tila.py.
+KUSKILTA_KIELLETYT = [r for r in MUOKKAAVAT if r not in KUSKILLE_SALLITUT_MUOKKAUKSET]
+
+
+def test_kuskin_poikkeukset_ovat_vain_paatetyt():
+    assert KUSKILLE_SALLITUT_MUOKKAUKSET == {("POST", "/keikat/{keikka_id}/tila")}
+    assert KUSKILLE_SALLITUT_MUOKKAUKSET <= set(MUOKKAAVAT)  # reitti on olemassa
+    assert len(KUSKILTA_KIELLETYT) == len(MUOKKAAVAT) - 1
+
+
+@pytest.mark.parametrize(("metodi", "polku"), KUSKILTA_KIELLETYT, ids=[f"{m} {p}" for m, p in KUSKILTA_KIELLETYT])
 async def test_kuski_ei_saa_muokata_403(client, kuski_otsakkeet, metodi, polku):
     vastaus = await client.request(metodi, _tayta(polku), headers=kuski_otsakkeet, json={})
     assert vastaus.status_code == 403, vastaus.text

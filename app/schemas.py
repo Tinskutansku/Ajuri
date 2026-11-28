@@ -8,7 +8,7 @@ from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from app.models import HenkiloTyyppi, KayttajaRooli, SopimusTyyppi, TehtavaTyyppi
+from app.models import HenkiloTyyppi, KayttajaRooli, KeikkaTila, SopimusTyyppi, TehtavaTyyppi
 
 # ---------------------------------------------------------------------------
 # Syötteiden rajat (ROADMAP L3)
@@ -356,6 +356,14 @@ class KeikkaRead(BaseModel):
     jarjestys: int
     kasin_siirretty: bool
     kuitattu: bool
+    tila: KeikkaTila
+    kyydissa_klo: datetime | None
+    perilla_klo: datetime | None
+
+
+class KeikanTilaPyynto(BaseModel):
+    """POST /keikat/{id}/tila (ROADMAP N3)."""
+    tila: KeikkaTila
 
 
 # ---------------------------------------------------------------------------
@@ -430,6 +438,7 @@ class KeikkaVastaus(BaseModel):
     mista: str
     mihin: str
     kuitattu: bool
+    tila: KeikkaTila = KeikkaTila.ODOTTAA
     lukittu: bool
 
 

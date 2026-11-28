@@ -20,6 +20,7 @@ from app.models import (
     Kayttaja,
     KayttajaRooli,
     Keikka,
+    KeikkaTila,
     Kuski,
     Kuvauspaiva,
     PaivaKuski,
@@ -242,7 +243,9 @@ async def _optimoi_paiva(
     lukitut_map: dict[int, Keikka] = {}
     edellinen_kuski_map: dict[int, int] = {}
     for kk in pohja_keikat:
-        if kk.kuitattu or _time_to_min(kk.nouto_klo) < nyt_min:
+        # N3: kuskin kuittaama keikka (kyydissä tai perillä) on jo käynnissä
+        # tai ajettu, joten se lukitaan kuten kuitattu tai mennyt keikka.
+        if kk.kuitattu or kk.tila != KeikkaTila.ODOTTAA or _time_to_min(kk.nouto_klo) < nyt_min:
             lukitut_map[kk.tehtava_id] = kk
         else:
             edellinen_kuski_map[kk.tehtava_id] = kk.paiva_kuski_id
@@ -423,7 +426,8 @@ async def _optimoi_paiva(
         skenaariot_data = None
 
     # --- Yhdistä lukitut + uudet keikat ---
-    persistoinnin_lisatiedot: dict[int, tuple[bool, bool]] = {}  # tehtava_id -> (kasin_siirretty, kuitattu)
+    # tehtava_id -> lukitun keikan kentät, jotka kopioidaan uuteen versioon
+    persistoinnin_lisatiedot: dict[int, dict] = {}
     yhdistetyt: list[KeikkaTulos] = list(tulos.keikat)
     for kk in lukitut_map.values():
         yhdistetyt.append(
@@ -435,7 +439,13 @@ async def _optimoi_paiva(
                 lukittu=True,
             )
         )
-        persistoinnin_lisatiedot[kk.tehtava_id] = (kk.kasin_siirretty, kk.kuitattu)
+        persistoinnin_lisatiedot[kk.tehtava_id] = {
+            "kasin_siirretty": kk.kasin_siirretty,
+            "kuitattu": kk.kuitattu,
+            "tila": kk.tila,
+            "kyydissa_klo": kk.kyydissa_klo,
+            "perilla_klo": kk.perilla_klo,
+        }
 
     yhteenveto = koosta_kuskien_yhteenveto(yhdistetyt, kuskit_kaikki)
     kuski_by_id = {k.paiva_kuski_id: k for k in kuskit_kaikki}
@@ -463,7 +473,6 @@ async def _optimoi_paiva(
     keikka_rivit: list[Keikka] = []
     for y in yhteenveto:
         for jarjestys, kk in enumerate(y.keikat, start=1):
-            kasin_siirretty, kuitattu = persistoinnin_lisatiedot.get(kk.tehtava_id, (False, False))
             keikka_rivit.append(
                 Keikka(
                     versio_id=uusi_versio.id,
@@ -472,8 +481,7 @@ async def _optimoi_paiva(
                     nouto_klo=_min_to_time(kk.nouto_min),
                     jatto_klo=_min_to_time(kk.jatto_min),
                     jarjestys=jarjestys,
-                    kasin_siirretty=kasin_siirretty,
-                    kuitattu=kuitattu,
+                    **persistoinnin_lisatiedot.get(kk.tehtava_id, {}),
                 )
             )
     db.add_all(keikka_rivit)
@@ -502,7 +510,8 @@ async def _optimoi_paiva(
                     jatto_klo=_hhmm(kk.jatto_min),
                     mista=tehtava_by_id[kk.tehtava_id].mista_osoite,
                     mihin=tehtava_by_id[kk.tehtava_id].mihin_osoite,
-                    kuitattu=persistoinnin_lisatiedot.get(kk.tehtava_id, (False, False))[1],
+                    kuitattu=persistoinnin_lisatiedot.get(kk.tehtava_id, {}).get("kuitattu", False),
+                    tila=persistoinnin_lisatiedot.get(kk.tehtava_id, {}).get("tila", KeikkaTila.ODOTTAA),
                     lukittu=kk.tehtava_id in lukittu_tehtava_ids,
                 )
                 for kk in y.keikat
